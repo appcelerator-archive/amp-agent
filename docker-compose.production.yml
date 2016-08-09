@@ -1,7 +1,7 @@
 version: '2'
 services:
-  amp-pilot:
-    image: appcelerator/amp-pilot:latest
+  amp-agent:
+    image: appcelerator/amp-agent:latest
     build: .
     environment:
       CONSUL: consul:8500

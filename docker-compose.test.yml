@@ -2,5 +2,5 @@ version: '2'
 services:
   sut:
     build: .
-    image: appcelerator/amp-pilot:latest
-    command: autotest
+    image: appcelerator/amp-agent:latest
+    command: echo ok
