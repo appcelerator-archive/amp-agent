@@ -5,7 +5,7 @@ import (
     "github.com/appcelerator/amp-agent/core"
 )
 
-const version string = "1.0.0-0"
+const version string = "1.0.0-1"
 
 func main() {
   err := core.AgentInit(version)

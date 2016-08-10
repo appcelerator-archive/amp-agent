@@ -6,6 +6,7 @@ import (
     "strings"
     "encoding/json"
     samara "github.com/Shopify/sarama"
+    "github.com/docker/engine-api/types/events"
 )
 
 const maxBuffer = 10000
@@ -14,12 +15,15 @@ type Kafka struct {
     producer samara.AsyncProducer
     kafkaReady bool
     kafkaInit bool
-    messageBuffer []logMessage
-    messageBufferIndex int
+    logBuffer []logMessage
+    logBufferIndex int
+    eventBuffer []events.Message
+    eventBufferIndex int
+
 }
 
 type logMessage struct {
-    Timestamp string            `json:"timestamp"`
+    Timestamp time.Time         `json:"timestamp"`
     Time_id string              `json:time_id`
     Service_id string           `json:"service_id"`
     Service_name string         `json:"service_name"`
@@ -35,8 +39,10 @@ func initKafka() {
     fmt.Println("Init Kafka")
     kafka.kafkaReady = false
     kafka.kafkaInit = true
-    kafka.messageBuffer = make([]logMessage, maxBuffer)
-    kafka.messageBufferIndex = 0
+    kafka.logBuffer = make([]logMessage, maxBuffer)
+    kafka.logBufferIndex = 0
+    kafka.eventBuffer = make([]events.Message, maxBuffer)
+    kafka.eventBufferIndex = 0    
     kafka.startPeriodicKafkaChecking()
 }
 
@@ -50,16 +56,14 @@ func (self *Kafka) startPeriodicKafkaChecking() {
         config := samara.NewConfig()
         fmt.Println(conf.kafka)
         client, err := samara.NewClient(strings.Split(conf.kafka,","), config)
-        fmt.Println("1", err)
         if (err == nil) {
           prod, err := samara.NewAsyncProducerFromClient(client)
-          fmt.Println("2", err)
           if err == nil {
               fmt.Println("Kafka producer ready on topic: "+conf.kafkaLogsTopic)
               self.producer = prod
               self.kafkaReady = true
               self.kafkaInit = false
-              self.sendMessageBuffer()
+              self.sendLogFromBuffer()
           }
         }
       }
@@ -73,16 +77,16 @@ func (self *Kafka) startPeriodicKafkaChecking() {
 }
 
 //create the message struct save it in buffer if Kafka not reday, send to Kafka if ready,
-func (self *Kafka) sendMessage(mes logMessage) {
+func (self *Kafka) sendLog(mes logMessage) {
     if !self.kafkaReady {
-        self.saveMessageOnBuffer(mes)
+        self.saveLogToBuffer(mes)
     } else {
-        self.sendToKafka(mes)
+        self.produceLog(mes)
     }
 }
 
 //Marshal the message and send it to Kafka
-func (self *Kafka) sendToKafka(mes logMessage) {
+func (self *Kafka) produceLog(mes logMessage) {
     var data string
     if (len(mes.Message)>0 && mes.Message[0:1] == "{") {
         mesMap := make(map[string]string)
@@ -102,48 +106,94 @@ func (self *Kafka) sendToKafka(mes logMessage) {
             mesMap["service_name"] = mes.Service_name
             mesMap["node_id"] = mes.Node_id
             mesMap["container_id"] = mes.Container_id
-            mesMap["timestamp"] = mes.Timestamp
-            mesMap["time_id"] = mes.Timestamp
+            //mesMap["timestamp"] = mes.Timestamp
+            mesMap["time_id"] = mes.Time_id
             dat, _ := json.Marshal(mesMap)
             data = string(dat)
+            data = fmt.Sprintf("{\"timestamp\": %v, %s",mes.Timestamp.Unix()*1000, data[1:])
         } else {
             dat, _ := json.Marshal(mes)
-            data = string(dat)
+            data = string(dat)    
         }
     } else {
         dat, _ := json.Marshal(mes)
         data = string(dat)
     }
     select {
-    case self.producer.Input() <- &samara.ProducerMessage{Topic: conf.kafkaLogsTopic, Key: nil, Value: samara.StringEncoder(data)}:
+        case self.producer.Input() <- &samara.ProducerMessage{Topic: conf.kafkaLogsTopic, Key: nil, Value: samara.StringEncoder(data)}:
             //fmt.Println("sent")
             break
         case err := <-self.producer.Errors():
             fmt.Println("Kafka not ready anymore, error sending message: ", err)
             self.kafkaReady = false
-            self.saveMessageOnBuffer(mes)
+            self.saveLogToBuffer(mes)
             break
     }
 }
 
 //Save the message struct in Buffer
-func (self *Kafka) saveMessageOnBuffer(msg logMessage) {
-    if self.messageBufferIndex < maxBuffer {
-        self.messageBuffer[self.messageBufferIndex] = msg
-        self.messageBufferIndex++
+func (self *Kafka) saveLogToBuffer(msg logMessage) {
+    if self.logBufferIndex < maxBuffer {
+        self.logBuffer[self.logBufferIndex] = msg
+        self.logBufferIndex++
     }
 }
 
 //Send all message in buffer to Kafka
-func (self *Kafka) sendMessageBuffer() {
-    fmt.Printf("Write message buffer to Kafka (%v)\n", self.messageBufferIndex)
-    if self.messageBufferIndex >0 {
-        for  ii := 0; ii < self.messageBufferIndex; ii++ {
-            self.sendToKafka(self.messageBuffer[ii])
+func (self *Kafka) sendLogFromBuffer() {
+    fmt.Printf("Write logs from buffer to Kafka (%v)\n", self.logBufferIndex)
+    if self.logBufferIndex >0 {
+        for  ii := 0; ii < self.logBufferIndex; ii++ {
+            self.produceLog(self.logBuffer[ii])
         }
     }
-    self.messageBufferIndex = 0
-    fmt.Println("Write message buffer done")
+    self.logBufferIndex = 0
+    fmt.Println("Write logs from buffer done")
+}
+
+
+//create the message struct save it in buffer if Kafka not reday, send to Kafka if ready,
+func (self *Kafka) sendEvent(mes events.Message) {
+    if !self.kafkaReady {
+        self.saveEventToBuffer(mes)
+    } else {
+        self.produceEvent(mes)
+    }
+}
+
+//Marshal the message and send it to Kafka
+func (self *Kafka) produceEvent(mes events.Message) {
+    data, _ := json.Marshal(mes)
+    select {
+        case self.producer.Input() <- &samara.ProducerMessage{Topic: conf.kafkaDockerEventsTopic, Key: nil, Value: samara.StringEncoder(string(data))}:
+            //fmt.Println("sent")
+            break
+        case err := <-self.producer.Errors():
+            fmt.Println("Kafka not ready anymore, error sending message: ", err)
+            self.kafkaReady = false
+            self.saveEventToBuffer(mes)
+            break
+    }
+}
+
+//Save the message struct in Buffer
+func (self *Kafka) saveEventToBuffer(msg events.Message) {
+    if self.eventBufferIndex < maxBuffer {
+        self.eventBuffer[self.eventBufferIndex] = msg
+        self.eventBufferIndex++
+    }
+}
+
+//Send all message in buffer to Kafka
+func (self *Kafka) sendEventFromBuffer() {
+    fmt.Printf("Write event from buffer to Kafka (%v)\n", self.eventBufferIndex)
+    if self.eventBufferIndex >0 {
+        for  ii := 0; ii < self.eventBufferIndex; ii++ {
+            self.produceEvent(self.eventBuffer[ii])
+        }
+    }
+    self.eventBufferIndex = 0
+    fmt.Println("Write events from buffer done")
 }
 
 //Close Kafka producer

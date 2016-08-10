@@ -7,7 +7,7 @@ import (
   "golang.org/x/net/context"
   "bufio"
   "strings"
-  //"time"
+  "time"
 )
 
 func updateLogs() {
@@ -46,10 +46,11 @@ func startReadingLogs(id string, data *ContainerData) {
       line, err :=reader.ReadString('\n')
       if (err!=nil) {
         fmt.Printf("stop reading log on container %s: %v\n", id, err)
+        data.logsReadError = true
         return
       }
       slog := strings.TrimSuffix(line[39:], "\n")
-      //ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", stime)
+      ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
       if (conf.kafka!="") {
         mes := logMessage {
           Service_name : serviceName,
@@ -57,10 +58,10 @@ func startReadingLogs(id string, data *ContainerData) {
           Node_id : nodeId,
           Container_id : id,
           Message : slog,
-          Timestamp : line[8:38],
+          Timestamp : ntime,
           Time_id : line[8:38],
         }
-        kafka.sendMessage(mes)
+        kafka.sendLog(mes)
       }
     }
   }()

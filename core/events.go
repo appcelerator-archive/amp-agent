@@ -53,6 +53,9 @@ func startEventStream(stream io.ReadCloser) {
       //fmt.Printf("event status:%s type:%s, action:%s Actor:%s\n", event.Status, event.Type, event.Action, event.Actor)
       fmt.Printf("action=%s containerId=%s\n", event.Action, event.Actor.ID)
       agent.updateContainerMap(event.Action, event.Actor.ID)
+      if (conf.kafka!="") {
+        kafka.sendEvent(event)
+      }
     }
   }()
 }

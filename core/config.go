@@ -11,6 +11,7 @@ type AgentConfig struct {
   dockerEngine string
   kafka string
   kafkaLogsTopic string
+  kafkaDockerEventsTopic string
   port string
   period int
 }
@@ -29,6 +30,7 @@ func (self *AgentConfig) setDefault() {
   self.dockerEngine="unix:///var/run/docker.sock"
   self.kafka= "kafka:9092"
   self.kafkaLogsTopic="amp-logs"
+  self.kafkaDockerEventsTopic="amp-docker-events"
   self.port="3000"
   self.period=10
 }
@@ -38,6 +40,7 @@ func (self *AgentConfig) loadConfigUsingEnvVariable() {
   self.dockerEngine = getStringParameter("AMPAGENT_DOCKER", self.dockerEngine)
   self.kafka = getStringParameter("AMPAGENT_KAFKA", self.kafka)
   self.kafkaLogsTopic = getStringParameter("AMPAGENT_LOGS_TOPIC", self.kafkaLogsTopic)
+  self.kafkaDockerEventsTopic = getStringParameter("AMPAGENT_DOCKEREVENTS_TOPIC", self.kafkaDockerEventsTopic)
   self.port = getStringParameter("AMPAGENT_PORT", self.port)
   self.period = getIntParameter("AMPAGENT_PERIOD", self.period)
 }
@@ -50,6 +53,7 @@ func (self * AgentConfig) displayConfig(version string) {
   fmt.Printf("Docker-engine: %s\n", conf.dockerEngine)
   fmt.Printf("Kafka addr: %s\n", conf.kafka)
   fmt.Printf("Kafka log topic: %s\n", conf.kafkaLogsTopic)
+  fmt.Printf("Kafka docker events topic: %s\n", conf.kafkaDockerEventsTopic)
   fmt.Println("----------------------------------------------------------------------------")
 }
 
