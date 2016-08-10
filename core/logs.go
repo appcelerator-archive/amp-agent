@@ -54,6 +54,7 @@ func startReadingLogs(id string, data *ContainerData) {
       if (conf.kafka!="") {
         mes := logMessage {
           Service_name : serviceName,
+          Service_uuid: serviceName,
           Service_id : serviceId,
           Node_id : nodeId,
           Container_id : id,

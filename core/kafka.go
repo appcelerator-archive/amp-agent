@@ -24,9 +24,10 @@ type Kafka struct {
 
 type logMessage struct {
     Timestamp time.Time         `json:"timestamp"`
-    Time_id string              `json:time_id`
+    Time_id string              `json:"time_id"`
     Service_id string           `json:"service_id"`
     Service_name string         `json:"service_name"`
+    Service_uuid string         `json:"service_uuid"` //obsolet to be removed
     Message string              `json:"message"`
     Container_id string         `json:"container_id"`
     Node_id string              `json:"node_id"`
@@ -101,8 +102,14 @@ func (self *Kafka) produceLog(mes logMessage) {
                     }
                 }
             }
-            mesMap["message"] = mesMap["msg"]
+            mesValue, ok := mesMap["msg"]
+            if (ok) {
+                mesMap["message"] = mesValue
+            } else {
+                mesMap["message"] = mes.Message
+            }
             mesMap["service_id"] = mes.Service_id
+            mesMap["service_uuid"] = mes.Service_uuid
             mesMap["service_name"] = mes.Service_name
             mesMap["node_id"] = mes.Node_id
             mesMap["container_id"] = mes.Container_id
