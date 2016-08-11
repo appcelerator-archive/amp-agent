@@ -4,6 +4,7 @@ import (
     "fmt"
     "net/http"
     "encoding/json"
+    "time"
 
 )
 
@@ -38,8 +39,15 @@ func agentHealth(resp http.ResponseWriter, req *http.Request) {
 
 //return the running container list with their paremeter including health
 func getHandledContainers(resp http.ResponseWriter, req *http.Request) {
+  fmt.Println("execute api /api/v1/containers")
   containers := make([]APIContainer, len(agent.containers))
   var nn int=0
+  if time.Since(agent.lastUpdate) > time.Duration(3)*time.Second {
+    for key, _ := range agent.containers {
+      agent.updateContainer(key)
+    } 
+    agent.lastUpdate = time.Now()
+  }
   for key, data := range agent.containers {
     containers[nn]= APIContainer {
       ContainerId: key,

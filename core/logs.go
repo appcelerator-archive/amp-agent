@@ -102,31 +102,31 @@ func startReadingLogs(id string, data *ContainerData) {
         return
       }
       var slog string
-      if (len(line)>40) {
+      if (len(line)>39) {
         slog = strings.TrimSuffix(line[39:], "\n")
+        ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
+        if (conf.kafka!="") {
+          mes := logMessage {
+            Service_name : serviceName,
+            Service_uuid: serviceName,
+            Service_id : serviceId,
+            Node_id : nodeId,
+            Container_id : id,
+            Message : slog,
+            Timestamp : ntime,
+            Time_id : line[8:38],
+          }
+          if (kafka.kafkaReady) {
+            kafka.sendLog(mes)
+          } else {
+            fmt.Printf("Kafka not ready anymore, stop reading log on container %s\n", id)
+            data.logsReadError = true
+            stream.Close()
+            return
+          }
+        }
       } else {
-        slog = ""
-      }
-      ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
-      if (conf.kafka!="") {
-        mes := logMessage {
-          Service_name : serviceName,
-          Service_uuid: serviceName,
-          Service_id : serviceId,
-          Node_id : nodeId,
-          Container_id : id,
-          Message : slog,
-          Timestamp : ntime,
-          Time_id : line[8:38],
-        }
-        if (kafka.kafkaReady) {
-          kafka.sendLog(mes)
-        } else {
-          fmt.Printf("Kafka not ready anymore, stop reading log on container %s\n", id)
-          data.logsReadError = true
-          stream.Close()
-          return
-        }
+        fmt.Printf("invalid log: [%s]\n", line)
       }
     }
   }()

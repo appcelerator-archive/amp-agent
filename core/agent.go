@@ -19,6 +19,7 @@ type Agent struct {
   containers map[string]*ContainerData
   eventsStream io.ReadCloser
   eventStreamReading bool
+  lastUpdate time.Time
 }
 
 type ContainerData struct {
@@ -55,6 +56,7 @@ func AgentInit(version string) error {
   for _, cont := range containers {
     agent.addContainer(cont.ID)
   }
+  agent.lastUpdate = time.Now()
   fmt.Println("done")
   agent.start()
   return nil
@@ -110,6 +112,24 @@ func (self *Agent) removeContainer(id string) {
     fmt.Println("remove container", id)
     delete(self.containers, id)
   }
+}
+
+func (self *Agent) updateContainer(id string) {
+  data, ok := self.containers[id]
+  if (ok) {
+    inspect, err := self.client.ContainerInspect(context.Background(), id)
+    if err == nil {
+      data.labels = inspect.Config.Labels
+      data.state = inspect.State.Status
+      data.health = ""
+      if (inspect.State.Health != nil) {
+        data.health = inspect.State.Health.Status
+      }
+      fmt.Println("update container", id)
+    } else {
+      fmt.Printf("Container inspect error: %v\n", err)
+    }
+  } 
 }
 
 //Launch a routine to catch SIGTERM Signal
