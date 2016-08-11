@@ -6,19 +6,20 @@ import (
   "strconv"
 )
 
-//Json format of conffile
+//Conffile parameters
 type AgentConfig struct {
   dockerEngine string
   kafka string
   kafkaLogsTopic string
   kafkaDockerEventsTopic string
-  port string
+  elasticsearchUrl string
+  apiPort string
   period int
 }
 
 var conf AgentConfig
 
-//Load Json conffile and instanciate new Config
+//update conf instance with default value and environment variables
 func (self *AgentConfig) init(version string) {
   self.setDefault()
   self.loadConfigUsingEnvVariable()
@@ -31,7 +32,8 @@ func (self *AgentConfig) setDefault() {
   self.kafka= "kafka:9092"
   self.kafkaLogsTopic="amp-logs"
   self.kafkaDockerEventsTopic="amp-docker-events"
-  self.port="3000"
+  self.elasticsearchUrl="elasticsearch:9200/amp-logs/_search"
+  self.apiPort="3000"
   self.period=10
 }
 
@@ -41,7 +43,8 @@ func (self *AgentConfig) loadConfigUsingEnvVariable() {
   self.kafka = getStringParameter("AMPAGENT_KAFKA", self.kafka)
   self.kafkaLogsTopic = getStringParameter("AMPAGENT_LOGS_TOPIC", self.kafkaLogsTopic)
   self.kafkaDockerEventsTopic = getStringParameter("AMPAGENT_DOCKEREVENTS_TOPIC", self.kafkaDockerEventsTopic)
-  self.port = getStringParameter("AMPAGENT_PORT", self.port)
+  self.apiPort = getStringParameter("AMPAGENT_PORT", self.apiPort)
+  self.elasticsearchUrl = getStringParameter("AMPAGENT_ELASTICSEARCH", self.elasticsearchUrl)
   self.period = getIntParameter("AMPAGENT_PERIOD", self.period)
 }
 

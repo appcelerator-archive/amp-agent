@@ -15,7 +15,7 @@ RUN go build -o /go/bin/amp-agent
 
 RUN chmod +x /go/bin/*
 
-HEALTHCHECK --interval=10s --timeout=15s --retries=6 CMD curl localhost:3000/api/v1/health
+HEALTHCHECK --interval=5s --timeout=15s --retries=12 CMD curl localhost:3000/api/v1/health
 
 CMD ["/go/bin/amp-agent"]
 

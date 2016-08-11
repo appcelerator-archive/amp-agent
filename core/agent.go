@@ -6,11 +6,18 @@ import (
     "github.com/docker/engine-api/types"
     "golang.org/x/net/context"
     "io"
+    "time"
+    "runtime"
+    "os"
+    "os/signal"
+    "syscall"
+
 )
 
 type Agent struct {
   client *client.Client
   containers map[string]*ContainerData
+  eventsStream io.ReadCloser
   eventStreamReading bool
 }
 
@@ -24,14 +31,11 @@ type ContainerData struct {
 
 var agent Agent
 
-func (self *Agent) start() {
-  initAPI()
-  initEvents()
-  updateLogs()
-}
 
-//Connect to docker engine and get initial containers list
+//Connect to docker engine, get initial containers list and start the agent
 func AgentInit(version string) error {
+  runtime.GOMAXPROCS(50)
+  agent.trapSignal()
   conf.init(version)
   initKafka()
   fmt.Println("Connecting to docker...")
@@ -56,6 +60,17 @@ func AgentInit(version string) error {
   return nil
 }
 
+//Main agent loop, verify if events and logs stream are started if not start them
+func (self *Agent) start() {
+  initAPI()
+  for {
+    updateLogsStream()
+    updateEventsStream()
+    time.Sleep(time.Duration(conf.period) * time.Second)
+  }
+}
+
+//Update containers list concidering event action and event containerId
 func (self *Agent) updateContainerMap(action string, containerId string) {
   if action=="start" {
     self.addContainer(containerId)
@@ -64,6 +79,7 @@ func (self *Agent) updateContainerMap(action string, containerId string) {
   }
 }
 
+//add a container to the main container map and retrieve some container information
 func (self *Agent) addContainer(id string) {
   _, ok := self.containers[id]
   if (!ok) {
@@ -81,18 +97,32 @@ func (self *Agent) addContainer(id string) {
       }
       fmt.Println("add container", id)
       self.containers[id] = &data
-      updateLogs()
     } else {
       fmt.Printf("Container inspect error: %v\n", err)
     }
   }
 }
 
+//Suppress a container from the main container map
 func (self *Agent) removeContainer(id string) {
   _, ok := agent.containers[id]
   if (ok) {
     fmt.Println("remove container", id)
     delete(self.containers, id)
-    updateLogs()
   }
+}
+
+//Launch a routine to catch SIGTERM Signal
+func (self *Agent) trapSignal() {
+    ch := make(chan os.Signal, 1)
+    signal.Notify(ch, os.Interrupt)
+    signal.Notify(ch, syscall.SIGTERM)
+    go func() {
+        <-ch
+        fmt.Println("\namp-agent received SIGTERM signal")
+        self.eventsStream.Close()
+        closeLogsStreams()
+        kafka.close()
+        os.Exit(1)
+    }()
 }
