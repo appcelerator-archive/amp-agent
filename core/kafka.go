@@ -12,6 +12,7 @@ import (
 type Kafka struct {
     producer samara.AsyncProducer
     kafkaReady bool
+    kafkatest bool
     kafkaInit bool
 }
 
@@ -39,31 +40,47 @@ func initKafka() {
 
 //launch the periodical Kafka checking trying to create Producer
 func (self *Kafka) startPeriodicKafkaChecking() {
-  fmt.Println("start Kafka checking")
-  go func() {
-    for {
-      if !self.kafkaReady {
-        fmt.Println("Kafka not ready")
-        config := samara.NewConfig()
-        fmt.Println(conf.kafka)
-        client, err := samara.NewClient(strings.Split(conf.kafka,","), config)
-        if (err == nil) {
-          prod, err := samara.NewAsyncProducerFromClient(client)
-          if err == nil {
-              fmt.Println("Kafka producer ready on topic: "+conf.kafkaLogsTopic)
-              self.producer = prod
-              self.kafkaReady = true
-              self.kafkaInit = false
-          }
+    fmt.Println("start Kafka checking")
+    go func() {
+        for {
+            if self.kafkaReady {
+                self.kafkaInit = false
+            } else {
+                fmt.Println("Kafka is not ready")
+                config := samara.NewConfig()
+                client, err := samara.NewClient(strings.Split(conf.kafka,","), config)
+                if (err == nil) {
+                    prod, err := samara.NewAsyncProducerFromClient(client)
+                    if err == nil {
+                        self.producer = prod
+                        mes := logMessage {
+                            Service_name : "test",
+                            Service_uuid: "test",
+                            Service_id : "test",
+                            Node_id : "test",
+                            Container_id : "test",
+                            Message : "test",
+                            Timestamp : time.Now(),
+                            Time_id : fmt.Sprintf("%v", time.Now().UnixNano()),
+                        }
+                        //kafka is ready, but verifying that topic is created
+                        self.kafkatest = true
+                        kafka.sendLog(mes)
+                        time.Sleep(12 * time.Second) //time needed to be sure to get kafka error
+                        if (self.kafkatest) {
+                            fmt.Println("Kafka is ready")
+                            self.kafkaReady = true
+                        }
+                    }
+                }
+            }
+            if (self.kafkaInit) {
+                time.Sleep(time.Duration(3) * time.Second)
+            } else {
+                time.Sleep(time.Duration(30) * time.Second)
+            }
         }
-      }
-      if (self.kafkaInit) {
-          time.Sleep(time.Duration(3) * time.Second)
-      } else {
-          time.Sleep(time.Duration(30) * time.Second)
-      }
-    }
-  }()
+    }()
 }
 
 //Marshal the logMessage and send it to Kafka, unmarshal message field if json to distribute it on separate fields 
@@ -108,10 +125,12 @@ func (self *Kafka) sendLog(mes logMessage) {
     }
     select {
         case self.producer.Input() <- &samara.ProducerMessage{Topic: conf.kafkaLogsTopic, Key: nil, Value: samara.StringEncoder(data)}:
-            //fmt.Println("sent")
             break
         case err := <-self.producer.Errors():
-            fmt.Println("Kafka not ready anymore, error sending message: ", err)
+            if mes.Container_id != "test" {
+                fmt.Println("Kafka not ready anymore, error sending message: ", err)
+            }
+            self.kafkatest = false
             self.kafkaReady = false
             break
     }

@@ -5,10 +5,11 @@ ENV PATH /go/bin:$PATH
 RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
 RUN mkdir -p /go/src/github.com/appcelerator/amp-agent /go/bin
 WORKDIR /go/src/github.com/appcelerator/amp-agent
+
+RUN apk update && apk --virtual build-deps add go git curl
+
 COPY ./ ./
-RUN apk update && \
-    apk --virtual build-deps add go git curl && \
-    go get -u github.com/Masterminds/glide/... && \
+RUN go get -u github.com/Masterminds/glide/... && \
     glide install && \
     rm -f ./amp-agent && \
     go build -o /go/bin/amp-agent && \

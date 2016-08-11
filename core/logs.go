@@ -19,12 +19,11 @@ func updateLogsStream() {
   if (kafka.kafkaReady) {
     for id, data := range agent.containers {
       if (data.logsStream==nil || data.logsReadError) {
-        fmt.Printf("open logs stream container: %s\n", id)
         lastTimeId := getLastTimeId(id)
         if (lastTimeId == "") {
-          fmt.Println("from the begining")
+          fmt.Printf("open logs stream from the begining on container %s\n", id)
         } else {
-          fmt.Printf("from time_id=%s\n", lastTimeId)
+          fmt.Printf("open logs stream from time_id=%s on container %s\n", lastTimeId, id)
         }
         stream, err := openLogsStream(id, lastTimeId)
         if (err!=nil) {
@@ -87,25 +86,25 @@ func extractTimeId(body string) string {
 }
 
 func startReadingLogs(id string, data *ContainerData) {
-  fmt.Printf("start reading logs on container: %s\n", id)
   go func() {
     stream := data.logsStream
     serviceName := data.labels["com.docker.swarm.service.name"]
     serviceId := data.labels["com.docker.swarm.service.id"]
     nodeId := data.labels["com.docker.swarm.node.id"]
     reader := bufio.NewReader(stream)
+    fmt.Printf("start reading logs on container: %s\n", id)
     for {
       line, err :=reader.ReadString('\n')
       if (err!=nil) {
         fmt.Printf("stop reading log on container %s: %v\n", id, err)
         data.logsReadError = true
+        stream.Close()
         return
       }
       var slog string
       if (len(line)>40) {
         slog = strings.TrimSuffix(line[39:], "\n")
       } else {
-        //fmt.Println("log line length error: "+line)
         slog = ""
       }
       ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
