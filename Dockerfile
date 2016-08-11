@@ -1,23 +1,20 @@
 FROM appcelerator/alpine:3.4
 
-
-RUN apk update
-RUN apk add bash go bzr git mercurial subversion openssh-client ca-certificates && mkdir -p /go/src /go/bin && chmod -R 777 /go
 ENV GOPATH /go
 ENV PATH /go/bin:$PATH
+RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
 RUN mkdir -p /go/src/github.com/appcelerator/amp-agent /go/bin
 WORKDIR /go/src/github.com/appcelerator/amp-agent
-
-
 COPY ./ ./
-RUN rm -rf ./vendor && rm -f ./amp-agent
-RUN go get -u github.com/Masterminds/glide/...
-RUN glide install
-RUN go build -o /go/bin/amp-agent             
+RUN apk update && \
+    apk --virtual build-deps add go git curl && \
+    go get -u github.com/Masterminds/glide/... && \
+    glide install && \
+    rm -f ./amp-agent && \
+    go build -o /go/bin/amp-agent && \
+    apk del build-deps && cd / && rm -rf $GOPATH/src /var/cache/apk/*
 
-RUN chmod +x /go/bin/*
-
-HEALTHCHECK --interval=5s --timeout=15s --retries=12 CMD curl localhost:3000/api/v1/health
+HEALTHCHECK --interval=5s --timeout=15s --retries=24 CMD curl localhost:3000/api/v1/health
 
 CMD ["/go/bin/amp-agent"]
 
