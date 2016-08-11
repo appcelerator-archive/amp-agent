@@ -7,8 +7,10 @@ ENV GOPATH /go
 ENV PATH /go/bin:$PATH
 RUN mkdir -p /go/src/github.com/appcelerator/amp-agent /go/bin
 WORKDIR /go/src/github.com/appcelerator/amp-agent
+
+
 COPY ./ ./
-RUN rm -rf ./vendor
+RUN rm -rf ./vendor && rm -f ./amp-agent
 RUN go get -u github.com/Masterminds/glide/...
 RUN glide install
 RUN go build -o /go/bin/amp-agent             
