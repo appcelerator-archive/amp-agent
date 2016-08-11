@@ -40,8 +40,9 @@ func initKafka() {
 
 //launch the periodical Kafka checking trying to create Producer
 func (self *Kafka) startPeriodicKafkaChecking() {
-    fmt.Println("start Kafka checking")
     go func() {
+        time.Sleep(30 * time.Second)
+        fmt.Println("start Kafka checking")
         for {
             if self.kafkaReady {
                 self.kafkaInit = false
@@ -75,10 +76,11 @@ func (self *Kafka) startPeriodicKafkaChecking() {
                 }
             }
             if (self.kafkaInit) {
-                time.Sleep(time.Duration(3) * time.Second)
+                time.Sleep(10 * time.Second)
             } else {
-                time.Sleep(time.Duration(30) * time.Second)
+                time.Sleep(30 * time.Second)
             }
+
         }
     }()
 }
@@ -110,7 +112,6 @@ func (self *Kafka) sendLog(mes logMessage) {
             mesMap["service_name"] = mes.Service_name
             mesMap["node_id"] = mes.Node_id
             mesMap["container_id"] = mes.Container_id
-            //mesMap["timestamp"] = mes.Timestamp
             mesMap["time_id"] = mes.Time_id
             dat, _ := json.Marshal(mesMap)
             data = string(dat)
@@ -128,9 +129,10 @@ func (self *Kafka) sendLog(mes logMessage) {
             break
         case err := <-self.producer.Errors():
             if mes.Container_id != "test" {
-                fmt.Println("Kafka not ready anymore, error sending message: ", err)
+                fmt.Println("Kafka not ready anymore, error sending logs: ", err)
+            } else {
+                self.kafkatest = false
             }
-            self.kafkatest = false
             self.kafkaReady = false
             break
     }
@@ -141,11 +143,9 @@ func (self *Kafka) sendEvent(mes events.Message) {
     data, _ := json.Marshal(mes)
     select {
         case self.producer.Input() <- &samara.ProducerMessage{Topic: conf.kafkaDockerEventsTopic, Key: nil, Value: samara.StringEncoder(string(data))}:
-            //fmt.Println("sent")
             break
         case err := <-self.producer.Errors():
-            fmt.Println("Kafka not ready anymore, error sending message: ", err)
-            self.kafkaReady = false
+            fmt.Println("Kafka not ready anymore, error sending event: ", err)
             break
     }
 }
