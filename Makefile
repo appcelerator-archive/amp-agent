@@ -39,7 +39,7 @@ clean:
 	@rm -f $GOPATH/bin/amp-agent
 
 test:
-	@go test -v $(REPO)/test
+	@go test -v $(REPO)/testapp
 
 install: 
 	@go install $(LDFLAGS) $(REPO)
