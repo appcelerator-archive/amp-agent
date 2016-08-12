@@ -88,10 +88,14 @@ func (self *Kafka) startPeriodicKafkaChecking() {
 //Marshal the logMessage and send it to Kafka, unmarshal message field if json to distribute it on separate fields 
 func (self *Kafka) sendLog(mes logMessage) {
     var data string
-    if (len(mes.Message)>0 && mes.Message[0:1] == "{") {
+    if (len(mes.Message)==0 || mes.Message[0:1] != "{") {
+        dat, _ := json.Marshal(mes)
+        data = string(dat)
+    } else {
+        var message string = mes.Message
         mesMap := make(map[string]string)
         var objmap map[string]*json.RawMessage
-        err := json.Unmarshal([]byte(mes.Message), &objmap)
+        err := json.Unmarshal([]byte(message), &objmap)
         if (err == nil) {
             for key, value := range objmap {
                 if (key != "timestamp") {
@@ -103,26 +107,16 @@ func (self *Kafka) sendLog(mes logMessage) {
             }
             mesValue, ok := mesMap["msg"]
             if (ok) {
-                mesMap["message"] = mesValue
-            } else {
-                mesMap["message"] = mes.Message
+                mes.Message = mesValue
             }
-            mesMap["service_id"] = mes.Service_id
-            mesMap["service_uuid"] = mes.Service_uuid
-            mesMap["service_name"] = mes.Service_name
-            mesMap["node_id"] = mes.Node_id
-            mesMap["container_id"] = mes.Container_id
-            mesMap["time_id"] = mes.Time_id
-            dat, _ := json.Marshal(mesMap)
+            dat, _ := json.Marshal(mes)
             data = string(dat)
-            data = fmt.Sprintf("{\"timestamp\": %v, %s",mes.Timestamp.Unix()*1000, data[1:])
+            dataExt, _ := json.Marshal(mesMap)
+            data = fmt.Sprintf("%s,%s", dataExt[0:len(dataExt)-1], data[1:])
         } else {
             dat, _ := json.Marshal(mes)
-            data = string(dat)    
+            data = string(dat)
         }
-    } else {
-        dat, _ := json.Marshal(mes)
-        data = string(dat)
     }
     select {
         case self.producer.Input() <- &samara.ProducerMessage{Topic: conf.kafkaLogsTopic, Key: nil, Value: samara.StringEncoder(data)}:
