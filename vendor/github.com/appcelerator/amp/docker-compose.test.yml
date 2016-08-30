@@ -1,0 +1,47 @@
+version: "2"
+
+services:
+  sut:
+    image: appcelerator/sut
+    build: .
+    command: ["make", "test"]
+    environment:
+      endpoints: http://etcd:2379
+      influxhost: influxdb
+      elasticsearchURL: http://elasticsearch:9200
+      kafkaURL: kafka:9092
+  etcd:
+    image: quay.io/coreos/etcd
+    command: [
+      "etcd",
+      "-name", "etcd0",
+      "-advertise-client-urls", "http://etcd:2379",
+      "-listen-client-urls", "http://0.0.0.0:2379",
+      "-initial-advertise-peer-urls", "http://etcd:2380",
+      "-initial-cluster-token", "etcd-cluster-1",
+      "-initial-cluster", "etcd0=http://etcd:2380",
+      "-initial-cluster-state", "new"
+    ]
+  influxdb:
+    image: appcelerator/influxdb
+    environment:
+      FORCE_HOSTNAME: auto
+      PRE_CREATE_DB: telegraf
+      CONFIG_ARCHIVE_URL: "https://github.com/appcelerator/amp-config/archive/0.1.0.tar.gz"
+  elasticsearch:
+    image: appcelerator/elasticsearch-amp
+  zookeeper:
+    image: appcelerator/zookeeper:latest
+  kafka:
+    image: appcelerator/kafka:latest
+    environment:
+      ZOOKEEPER_CONNECT: zookeeper:2181
+      TOPIC_LIST: amp-logs amp-docker-events telegraf
+  log-worker:
+    image: appcelerator/amp-log-worker:latest
+    restart: "always"
+  agent:
+    image: appcelerator/amp-agent:latest
+    privileged: true
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock

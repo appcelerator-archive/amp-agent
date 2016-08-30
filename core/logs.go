@@ -11,30 +11,31 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"github.com/appcelerator/amp/api/rpc/logs"
 )
 
 const elasticSearchTimeIDQuery = `{"query":{"match":{"container_id":"[container_id]"}},"sort":{"time_id":{"order":"desc"}},"from":0,"size":1}`
 
 func updateLogsStream() {
-	if kafka.kafkaReady {
-		for ID, data := range agent.containers {
-			if data.logsStream == nil || data.logsReadError {
-				lastTimeID := getLastTimeID(ID)
-				if lastTimeID == "" {
-					fmt.Printf("open logs stream from the begining on container %s\n", ID)
-				} else {
-					fmt.Printf("open logs stream from time_id=%s on container %s\n", lastTimeID, ID)
-				}
-				stream, err := openLogsStream(ID, lastTimeID)
-				if err != nil {
-					fmt.Printf("Error opening logs stream on container: %s\n", ID)
-				} else {
-					data.logsStream = stream
-					startReadingLogs(ID, data)
-				}
+	//if kafka.kafkaReady {
+	for ID, data := range agent.containers {
+		if data.logsStream == nil || data.logsReadError {
+			lastTimeID := getLastTimeID(ID)
+			if lastTimeID == "" {
+				fmt.Printf("open logs stream from the begining on container %s\n", ID)
+			} else {
+				fmt.Printf("open logs stream from time_id=%s on container %s\n", lastTimeID, ID)
+			}
+			stream, err := openLogsStream(ID, lastTimeID)
+			if err != nil {
+				fmt.Printf("Error opening logs stream on container: %s\n", ID)
+			} else {
+				data.logsStream = stream
+				startReadingLogs(ID, data)
 			}
 		}
 	}
+	//}
 }
 
 func openLogsStream(ID string, lastTimeID string) (io.ReadCloser, error) {
@@ -53,7 +54,7 @@ func openLogsStream(ID string, lastTimeID string) (io.ReadCloser, error) {
 //Use elasticsearch REST API directly
 func getLastTimeID(ID string) string {
 	request := strings.Replace(elasticSearchTimeIDQuery, "[container_id]", ID, 1)
-	req, err := http.NewRequest("POST", "http://"+conf.elasticsearchURL, bytes.NewBuffer([]byte(request)))
+	req, err := http.NewRequest("POST", "http://" + conf.elasticsearchURL, bytes.NewBuffer([]byte(request)))
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
@@ -74,15 +75,15 @@ func extractTimeID(body string) string {
 	if ll < 0 {
 		return ""
 	}
-	delim1 := strings.IndexByte(body[ll+8:], '"')
+	delim1 := strings.IndexByte(body[ll + 8:], '"')
 	if delim1 < 0 {
 		return ""
 	}
-	delim2 := strings.IndexByte(body[ll+8+delim1+1:], '"')
+	delim2 := strings.IndexByte(body[ll + 8 + delim1 + 1:], '"')
 	if delim2 < 0 {
 		return ""
 	}
-	return body[ll+delim1+9 : ll+delim1+9+delim2]
+	return body[ll + delim1 + 9 : ll + delim1 + 9 + delim2]
 }
 
 func startReadingLogs(ID string, data *ContainerData) {
@@ -106,24 +107,24 @@ func startReadingLogs(ID string, data *ContainerData) {
 				slog = strings.TrimSuffix(line[39:], "\n")
 				ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
 				if conf.kafka != "" {
-					mes := logMessage{
+					mes := logs.LogEntry{
 						ServiceName: serviceName,
-						ServiceUUID: serviceName,
-						ServiceID:   serviceID,
-						NodeID:      nodeID,
-						ContainerID: ID,
+						ServiceId:   serviceID,
+						NodeId:      nodeID,
+						ContainerId: ID,
 						Message:     slog,
-						Timestamp:   ntime,
-						TimeID:      line[8:38],
+						Timestamp:   ntime.String(),
+						TimeId:      line[8:38],
 					}
-					if kafka.kafkaReady {
-						kafka.sendLog(mes)
-					} else {
-						fmt.Printf("Kafka not ready anymore, stop reading log on container %s\n", ID)
-						data.logsReadError = true
-						stream.Close()
-						return
-					}
+					//if kafka.kafkaReady {
+					//	kafka.sendLog(mes)
+					//} else {
+					//	fmt.Printf("Kafka not ready anymore, stop reading log on container %s\n", ID)
+					//	data.logsReadError = true
+					//	stream.Close()
+					//	return
+					//}
+					messenger.sendLog(mes)
 				}
 			} else {
 				fmt.Printf("invalid log: [%s]\n", line)

@@ -32,13 +32,18 @@ type ContainerData struct {
 }
 
 var agent Agent
+var messenger Messenger
 
 //AgentInit Connect to docker engine, get initial containers list and start the agent
 func AgentInit(version string) error {
 	runtime.GOMAXPROCS(50)
 	agent.trapSignal()
 	conf.init(version)
-	initKafka()
+	//initKafka()
+	err := messenger.Init()
+	if err != nil {
+		return err
+	}
 	fmt.Println("Connecting to docker...")
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
@@ -132,7 +137,7 @@ func (agt *Agent) updateContainer(ID string) {
 	}
 }
 
-//Launch a routine to catch SIGTERM Signal
+// Launch a routine to catch SIGTERM Signal
 func (agt *Agent) trapSignal() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
@@ -142,7 +147,8 @@ func (agt *Agent) trapSignal() {
 		fmt.Println("\namp-agent received SIGTERM signal")
 		agt.eventsStream.Close()
 		closeLogsStreams()
-		kafka.close()
+		//kafka.close()
+		messenger.Close()
 		os.Exit(1)
 	}()
 }
