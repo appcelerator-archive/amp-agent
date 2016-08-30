@@ -20,11 +20,12 @@ IMAGES=(
   appcelerator/amp-ui:latest
   appcelerator/elasticsearch-amp:latest
   appcelerator/grafana:latest
-  appcelerator/haproxy:latest
   appcelerator/influxdb:influxdb-${INFLUXDATA_VERSION}
   appcelerator/kafka:latest
   appcelerator/kapacitor:kapacitor-${INFLUXDATA_VERSION}
   appcelerator/kibana:latest
+  appcelerator/nats-streaming:latest
+  appcelerator/nginx:latest
   appcelerator/telegraf:telegraf-${INFLUXDATA_VERSION}
   appcelerator/zookeeper:latest
   quay.io/coreos/etcd:v3.0.4
@@ -39,6 +40,7 @@ MINIMAGES=(
   appcelerator/influxdb:influxdb-${INFLUXDATA_VERSION}
   appcelerator/kafka:latest
   appcelerator/kibana:latest
+  appcelerator/nats-streaming:latest
   appcelerator/telegraf:telegraf-${INFLUXDATA_VERSION}
   appcelerator/zookeeper:latest
   quay.io/coreos/etcd:v3.0.4
@@ -55,12 +57,13 @@ SERVICES=(
   elasticsearch
   etcd
   grafana
-  haproxy
-  influxdb
   kafka
   kafkamanager
   kibana
+  influxdb
   kapacitor
+  nats-streaming
+  nginx
   telegrafagent
   telemetryworker
   zookeeper
@@ -76,6 +79,7 @@ MINSERVICES=(
   kafkamanager
   influxdb
   kibana
+  nats-streaming
   telegrafagent
   telemetryworker
   zookeeper
@@ -338,11 +342,19 @@ kibana() { # Owner: ndegory
 
 }
 
-haproxy() { # Owner: freignat91
-  docker service create --network amp-swarm --name haproxy \
+nats-streaming() { # Owner: bquenin
+  docker service create --network amp-swarm --name nats \
+    --label amp.swarm="infrastructure" \
+    -p 4222:4222 \
+    -p 8222:8222 \
+    appcelerator/nats-streaming:latest
+}
+
+nginx() { # Owner: freignat91
+  docker service create --network amp-swarm --name nginx \
     --label amp.swarm="infrastructure" \
     -p 80:80 \
-    appcelerator/haproxy:latest
+    appcelerator/nginx:latest
 }
 
 # DEPENDENCIES kafka
