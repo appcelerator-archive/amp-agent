@@ -1,8 +1,10 @@
-hash: d75aa023309bab007654b774317aed85764d84226428b5d01a33f5f5a2c797f1
-updated: 2016-08-28T18:43:14.814741533-07:00
+hash: 2058a650a4f46c478e38ed5cd97174f2cc08c93dbe6d659af7913ec2b39c6bd5
+updated: 2016-08-31T15:37:53.804051736+02:00
 imports:
-- name: github.com/cloudfoundry-incubator/candiedyaml
-  version: 99c3df83b51532e3615f851d8c2dbb638f5313bf
+- name: github.com/appcelerator/amp
+  version: 011cf61b2bee94542fdeb89c0a73863bb30d5391
+  subpackages:
+  - data/kafka
 - name: github.com/coreos/etcd
   version: 9efa00d1030d4bf62eb8e5ec130023aeb1b8e2d0
   subpackages:
@@ -13,7 +15,7 @@ imports:
   - mvcc/mvccpb
   - pkg/tlsutil
 - name: github.com/davecgh/go-spew
-  version: 6cf5744a041a0022271cefed95ba843f6d87fd51
+  version: fc32781af5e85e548d3f1abaf0fa3dbe8a72495c
   subpackages:
   - spew
 - name: github.com/docker/engine-api
@@ -31,16 +33,22 @@ imports:
 - name: github.com/fsnotify/fsnotify
   version: f12c6236fe7b5cf6bcf30e5935d08cb079d78334
 - name: github.com/ghodss/yaml
-  version: aa0c862057666179de291b67d9f093d12b5a8473
+  version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
+- name: github.com/gogo/protobuf
+  version: 909568be09de550ed094403c2bf8a261b5bb730a
+  subpackages:
+  - gogoproto
+  - proto
+  - protoc-gen-gogo/descriptor
 - name: github.com/golang/protobuf
-  version: 888eb0692c857ec880338addf316bd662d5e630e
+  version: 8616e8ee5e20a1704615e6c8d7afcdac06087a67
   subpackages:
   - jsonpb
   - proto
 - name: github.com/golang/snappy
-  version: d9eb7a3d35ec988b8585d4a0068e462c27d28380
+  version: 5979233c5d6225d4a8e438cdd0b411888449ddab
 - name: github.com/google/go-github
-  version: a59a35745f99ad92d70d69a9f180767063aa4bf3
+  version: b9698164669e386680621e2006cab02271257611
   subpackages:
   - github
 - name: github.com/google/go-querystring
@@ -48,7 +56,7 @@ imports:
   subpackages:
   - query
 - name: github.com/grpc-ecosystem/grpc-gateway
-  version: 331418a167bc76e7e4e7469cf704033eddaba7a5
+  version: f52d055dc48aec25854ed7d31862f78913cf17d1
   subpackages:
   - runtime
   - runtime/internal
@@ -65,7 +73,7 @@ imports:
   - json/scanner
   - json/token
 - name: github.com/howeyc/gopass
-  version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
+  version: b63a7d07e65df376d14e2d72907a93d4847dffe4
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/influxdata/influxdb
@@ -88,6 +96,16 @@ imports:
   version: 756f7b183b7ab78acdbbee5c7f392838ed459dda
 - name: github.com/mitchellh/mapstructure
   version: ca63d7c062ee3c9f34db231e352b60012b4fd0c1
+- name: github.com/nats-io/go-nats-streaming
+  version: 1875d675b301931c7037d118eac68dca8c99ceed
+  subpackages:
+  - pb
+- name: github.com/nats-io/nats
+  version: fc85f44c1659ab6610d76fd6bd0e44ad2cadf697
+  subpackages:
+  - encoders/builtin
+- name: github.com/nats-io/nuid
+  version: a5152d67cf63cbfb5d992a395458722a45194715
 - name: github.com/pelletier/go-buffruneio
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
@@ -101,7 +119,7 @@ imports:
   subpackages:
   - difflib
 - name: github.com/Shopify/sarama
-  version: 9bb4a68d57ff6f623363aa172f0a8297aa289ba7
+  version: bd61cae2be85fa6ff40eb23dcdd24567967ac2ae
 - name: github.com/spf13/afero
   version: 20500e2abd0d1f4564a499e83d11d6c73cd58c27
   subpackages:
@@ -122,28 +140,26 @@ imports:
   subpackages:
   - assert
 - name: golang.org/x/crypto
-  version: 351dc6a5bf92a5f2ae22fadeee08eb6a45aa2d93
+  version: 1f22c0103821b9390939b6776727195525381532
   subpackages:
   - curve25519
-  - ed25519
-  - ed25519/internal/edwards25519
   - ssh
   - ssh/terminal
 - name: golang.org/x/net
-  version: 6250b412798208e6c90b03b7c4f226de5aa299e2
+  version: 6acef71eb69611914f7a30939ea9f6e194c78172
   subpackages:
   - context
+  - context/ctxhttp
   - http2
   - http2/hpack
   - internal/timeseries
-  - lex/httplex
   - trace
 - name: golang.org/x/oauth2
-  version: 4d549c893be7d4011bab739cc585d091a7188d27
+  version: 54f42edba4a8f81d48dc8b2287b7c7421e673022
   subpackages:
   - internal
 - name: golang.org/x/sys
-  version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
+  version: 9c60d1c508f5134d1ca726b4641db998f2523357
   subpackages:
   - unix
 - name: golang.org/x/text
@@ -173,7 +189,7 @@ imports:
   - peer
   - transport
 - name: gopkg.in/olivere/elastic.v3
-  version: 908ffee99d2c7e5fc7cf6ddf437b1fb26f4bb286
+  version: 97cfc610dffee638f19f18853519210862e37171
   subpackages:
   - backoff
   - uritemplates

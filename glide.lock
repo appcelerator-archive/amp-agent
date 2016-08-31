@@ -1,12 +1,11 @@
-hash: bbf53f0e091a5cc048e11f9950d4545f14b9bd28ffb74a96bd692e86061560a8
-updated: 2016-08-31T10:36:19.365992532+02:00
+hash: 675cbebeacfcf9ecbd546670c50c3d3917a7840d84366d834b4b942fe86bd053
+updated: 2016-08-31T16:10:49.059289667+02:00
 imports:
 - name: github.com/appcelerator/amp
   version: 011cf61b2bee94542fdeb89c0a73863bb30d5391
   subpackages:
   - api/rpc/logs
-  - data/elasticsearch
-  - data/kafka
+  - data/messaging
   - data/storage
 - name: github.com/davecgh/go-spew
   version: fc32781af5e85e548d3f1abaf0fa3dbe8a72495c
@@ -82,13 +81,14 @@ imports:
   subpackages:
   - libcontainer/user
 - name: github.com/Shopify/sarama
-  version: 9bb4a68d57ff6f623363aa172f0a8297aa289ba7
+  version: bd61cae2be85fa6ff40eb23dcdd24567967ac2ae
 - name: github.com/Sirupsen/logrus
   version: 3ec0642a7fb6488f65b06f9040adc67e3990296a
 - name: golang.org/x/net
   version: 6acef71eb69611914f7a30939ea9f6e194c78172
   subpackages:
   - context
+  - context/ctxhttp
   - http2
   - http2/hpack
   - internal/timeseries
@@ -112,7 +112,7 @@ imports:
   - peer
   - transport
 - name: gopkg.in/olivere/elastic.v3
-  version: 908ffee99d2c7e5fc7cf6ddf437b1fb26f4bb286
+  version: 97cfc610dffee638f19f18853519210862e37171
   subpackages:
   - backoff
   - uritemplates

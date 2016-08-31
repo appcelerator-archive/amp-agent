@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/appcelerator/amp/data/messaging"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
@@ -32,7 +33,7 @@ type ContainerData struct {
 }
 
 var agent Agent
-var messenger Messenger
+var nats messaging.Nats
 
 //AgentInit Connect to docker engine, get initial containers list and start the agent
 func AgentInit(version string) error {
@@ -40,7 +41,7 @@ func AgentInit(version string) error {
 	agent.trapSignal()
 	conf.init(version)
 	//initKafka()
-	err := messenger.Init()
+	err := nats.Connect()
 	if err != nil {
 		return err
 	}
@@ -148,7 +149,7 @@ func (agt *Agent) trapSignal() {
 		agt.eventsStream.Close()
 		closeLogsStreams()
 		//kafka.close()
-		messenger.Close()
+		nats.Close()
 		os.Exit(1)
 	}()
 }

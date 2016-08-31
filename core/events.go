@@ -53,7 +53,7 @@ func startEventStream(stream io.ReadCloser) {
 			//if conf.kafka != "" && kafka.kafkaReady {
 			//	kafka.sendEvent(event)
 			//}
-			messenger.sendEvent(event)
+			// TODO: send to NATS
 		}
 	}()
 }

@@ -6,7 +6,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/appcelerator/amp/data/elasticsearch"
-	"github.com/appcelerator/amp/data/kafka"
+	"github.com/appcelerator/amp/data/messaging"
 	"github.com/appcelerator/amp/data/storage"
 	"golang.org/x/net/context"
 	"gopkg.in/olivere/elastic.v3"
@@ -21,7 +21,7 @@ const (
 type Logs struct {
 	Es    elasticsearch.Elasticsearch
 	Store storage.Interface
-	Kafka kafka.Kafka
+	Kafka messaging.Kafka
 }
 
 // Get implements log.LogServer

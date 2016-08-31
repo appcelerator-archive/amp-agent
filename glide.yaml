@@ -13,13 +13,4 @@ import:
 - package: golang.org/x/net
   subpackages:
   - context
-- package: github.com/nats-io/nuid
-- package: github.com/nats-io/go-nats-streaming
-  version: ^0.2.0
-- package: github.com/gogo/protobuf
-  version: ^0.3
-  subpackages:
-  - proto
-- package: github.com/appcelerator/amp
-  version: nats
 - package: github.com/golang/protobuf
