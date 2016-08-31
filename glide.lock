@@ -1,5 +1,5 @@
 hash: bbf53f0e091a5cc048e11f9950d4545f14b9bd28ffb74a96bd692e86061560a8
-updated: 2016-08-30T18:21:54.982199045+02:00
+updated: 2016-08-31T10:36:19.365992532+02:00
 imports:
 - name: github.com/appcelerator/amp
   version: 011cf61b2bee94542fdeb89c0a73863bb30d5391
@@ -13,7 +13,7 @@ imports:
   subpackages:
   - spew
 - name: github.com/docker/distribution
-  version: 2f16e6e7b36c57b6ba3d857a59088227206b3a33
+  version: 41f383fb9a3b4e3ff428a92db4f7836f8053058b
   subpackages:
   - digest
   - reference
@@ -122,6 +122,6 @@ testImports:
 - name: github.com/moul/http2curl
   version: b1479103caacaa39319f75e7f57fc545287fca0d
 - name: github.com/parnurzeal/gorequest
-  version: c08fcfd63c81c01d5c7ab146f5560dec89917694
+  version: 2aea80ce763523ecc6452e61c3727ae9595a5809
 - name: github.com/pkg4go/urlx
   version: e0257f656018df7474317d519ea37e720458dc9a
