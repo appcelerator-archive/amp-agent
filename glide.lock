@@ -1,14 +1,15 @@
-hash: 675cbebeacfcf9ecbd546670c50c3d3917a7840d84366d834b4b942fe86bd053
-updated: 2016-08-31T16:10:49.059289667+02:00
+hash: 3bc0938459f740eade9d192544899921136e8177966a307ce0ccfcf0890f8245
+updated: 2016-08-31T18:01:20.966218286+02:00
 imports:
 - name: github.com/appcelerator/amp
-  version: 011cf61b2bee94542fdeb89c0a73863bb30d5391
+  version: 6e519a5c5f34805af230e123ff41650463c21c34
   subpackages:
   - api/rpc/logs
+  - data/elasticsearch
   - data/messaging
   - data/storage
 - name: github.com/davecgh/go-spew
-  version: fc32781af5e85e548d3f1abaf0fa3dbe8a72495c
+  version: 6cf5744a041a0022271cefed95ba843f6d87fd51
   subpackages:
   - spew
 - name: github.com/docker/distribution
@@ -51,17 +52,17 @@ imports:
 - name: github.com/eapache/queue
   version: 44cc805cf13205b55f69e14bcb69867d1ae92f98
 - name: github.com/gogo/protobuf
-  version: 909568be09de550ed094403c2bf8a261b5bb730a
+  version: 966a6f4b3274f2692aa2f30df2ea5c7172c832ca
   subpackages:
   - gogoproto
   - proto
   - protoc-gen-gogo/descriptor
 - name: github.com/golang/protobuf
-  version: 8616e8ee5e20a1704615e6c8d7afcdac06087a67
+  version: 1f49d83d9aa00e6ce4fc8258c71cc7786aec968a
   subpackages:
   - proto
 - name: github.com/golang/snappy
-  version: 5979233c5d6225d4a8e438cdd0b411888449ddab
+  version: d9eb7a3d35ec988b8585d4a0068e462c27d28380
 - name: github.com/klauspost/crc32
   version: 19b0b332c9e4516a6370a0456e6182c3b5036720
 - name: github.com/Microsoft/go-winio
@@ -71,7 +72,7 @@ imports:
   subpackages:
   - pb
 - name: github.com/nats-io/nats
-  version: fc85f44c1659ab6610d76fd6bd0e44ad2cadf697
+  version: ea8b4fd12ebb823073c0004b9f09ac8748f4f165
   subpackages:
   - encoders/builtin
 - name: github.com/nats-io/nuid
@@ -85,18 +86,19 @@ imports:
 - name: github.com/Sirupsen/logrus
   version: 3ec0642a7fb6488f65b06f9040adc67e3990296a
 - name: golang.org/x/net
-  version: 6acef71eb69611914f7a30939ea9f6e194c78172
+  version: 9bc2a3340c92c17a20edcd0080e93851ed58f5d5
   subpackages:
   - context
   - context/ctxhttp
   - http2
   - http2/hpack
   - internal/timeseries
+  - lex/httplex
   - proxy
   - publicsuffix
   - trace
 - name: golang.org/x/sys
-  version: 9c60d1c508f5134d1ca726b4641db998f2523357
+  version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
   - unix
   - windows

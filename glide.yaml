@@ -1,16 +1,22 @@
 package: github.com/appcelerator/amp-agent
 import:
-- package: github.com/Shopify/sarama
-- package: github.com/davecgh/go-spew
+- package: github.com/appcelerator/amp
+  version: nats
   subpackages:
-  - spew
+  - api/rpc/logs
+  - data/messaging
 - package: github.com/docker/engine-api
+  version: ^0.4.0
   subpackages:
   - client
   - types
   - types/events
   - types/filters
+- package: github.com/golang/protobuf
+  subpackages:
+  - proto
 - package: golang.org/x/net
   subpackages:
   - context
-- package: github.com/golang/protobuf
+testImport:
+- package: github.com/haoxins/supertest
