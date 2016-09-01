@@ -1,12 +1,12 @@
-hash: 3bc0938459f740eade9d192544899921136e8177966a307ce0ccfcf0890f8245
-updated: 2016-08-31T18:01:20.966218286+02:00
+hash: cd6b6c4f3de02546185711d526172ef1dd6c69fdef1e60316484f266fdb3713d
+updated: 2016-09-01T15:17:47.80214861+02:00
 imports:
 - name: github.com/appcelerator/amp
-  version: 6e519a5c5f34805af230e123ff41650463c21c34
+  version: eb47287f5fe7f6c1a506d5c5997ef4cbfccea063
   subpackages:
   - api/rpc/logs
   - data/elasticsearch
-  - data/messaging
+  - data/kafka
   - data/storage
 - name: github.com/davecgh/go-spew
   version: 6cf5744a041a0022271cefed95ba843f6d87fd51
@@ -68,7 +68,7 @@ imports:
 - name: github.com/Microsoft/go-winio
   version: ce2922f643c8fd76b46cadc7f404a06282678b34
 - name: github.com/nats-io/go-nats-streaming
-  version: 1875d675b301931c7037d118eac68dca8c99ceed
+  version: 39a13f08b19082d559ba0e0d2aa250c12fe0492d
   subpackages:
   - pb
 - name: github.com/nats-io/nats
@@ -78,15 +78,17 @@ imports:
 - name: github.com/nats-io/nuid
   version: a5152d67cf63cbfb5d992a395458722a45194715
 - name: github.com/opencontainers/runc
-  version: 189a2ab2f7acc59043e457cea25b58f631443f08
+  version: b79076544e2edbe4180b7bc424d793dd6a8f1f90
   subpackages:
   - libcontainer/user
+- name: github.com/rcrowley/go-metrics
+  version: bdb33529eca3e55eac7328e07c57012a797af602
 - name: github.com/Shopify/sarama
-  version: bd61cae2be85fa6ff40eb23dcdd24567967ac2ae
+  version: e03d23b5a4fa1a72c30eace0403d7c2c3b5de55e
 - name: github.com/Sirupsen/logrus
   version: 3ec0642a7fb6488f65b06f9040adc67e3990296a
 - name: golang.org/x/net
-  version: 9bc2a3340c92c17a20edcd0080e93851ed58f5d5
+  version: 1358eff22f0dd0c54fc521042cc607f6ff4b531a
   subpackages:
   - context
   - context/ctxhttp
@@ -103,7 +105,7 @@ imports:
   - unix
   - windows
 - name: google.golang.org/grpc
-  version: 0032a855ba5c8a3c8e0d71c2deef354b70af1584
+  version: 79b7c349179cdd6efd8bac4a1ce7f01b98c16e9b
   subpackages:
   - codes
   - credentials
@@ -114,7 +116,7 @@ imports:
   - peer
   - transport
 - name: gopkg.in/olivere/elastic.v3
-  version: 97cfc610dffee638f19f18853519210862e37171
+  version: f9fd15e1ea3a50bbe58c72a4b8820499fe3bb0e1
   subpackages:
   - backoff
   - uritemplates

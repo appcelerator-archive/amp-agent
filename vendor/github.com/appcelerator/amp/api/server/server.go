@@ -13,7 +13,7 @@ import (
 	"github.com/appcelerator/amp/api/rpc/stats"
 	"github.com/appcelerator/amp/data/elasticsearch"
 	"github.com/appcelerator/amp/data/influx"
-	"github.com/appcelerator/amp/data/messaging"
+	"github.com/appcelerator/amp/data/kafka"
 	"github.com/appcelerator/amp/data/storage"
 	"github.com/appcelerator/amp/data/storage/etcd"
 	"google.golang.org/grpc"
@@ -27,7 +27,7 @@ var (
 	Elasticsearch elasticsearch.Elasticsearch
 
 	// Kafka is the kafka client
-	Kafka messaging.Kafka
+	Kafka kafka.Kafka
 
 	//Influx is the influxDB client
 	Influx influx.Influx

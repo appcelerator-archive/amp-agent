@@ -130,7 +130,7 @@ func startReadingLogs(ID string, data *ContainerData) {
 					if err != nil {
 						log.Printf("error marshalling log entry: %v", err)
 					}
-					_, err = nats.Publish("amp-logs", encoded)
+					_, err = sc.PublishAsync("amp-logs", encoded, nil)
 					if err != nil {
 						log.Printf("error sending log entry: %v", err)
 					}

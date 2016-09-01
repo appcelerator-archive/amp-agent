@@ -2,11 +2,12 @@ package core
 
 import (
 	"fmt"
-	"github.com/appcelerator/amp/data/messaging"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
+	"github.com/nats-io/go-nats-streaming"
 	"golang.org/x/net/context"
 	"io"
+	"log"
 	"os"
 	"os/signal"
 	"runtime"
@@ -33,7 +34,13 @@ type ContainerData struct {
 }
 
 var agent Agent
-var nats messaging.Nats
+var sc stan.Conn
+
+const (
+	clusterID = "test-cluster"
+	clientID  = "amp-agent"
+	natsURL   = "nats://nats:4222"
+)
 
 //AgentInit Connect to docker engine, get initial containers list and start the agent
 func AgentInit(version string) error {
@@ -41,10 +48,12 @@ func AgentInit(version string) error {
 	agent.trapSignal()
 	conf.init(version)
 	//initKafka()
-	err := nats.Connect()
+	var err error
+	sc, err = stan.Connect(clusterID, clientID, stan.NatsURL(natsURL))
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
+	log.Printf("Connected to NATS-Streaming at %s\n", natsURL)
 	fmt.Println("Connecting to docker...")
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
@@ -149,7 +158,7 @@ func (agt *Agent) trapSignal() {
 		agt.eventsStream.Close()
 		closeLogsStreams()
 		//kafka.close()
-		nats.Close()
+		sc.Close()
 		os.Exit(1)
 	}()
 }

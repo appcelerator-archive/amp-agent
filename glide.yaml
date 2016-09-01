@@ -1,10 +1,8 @@
 package: github.com/appcelerator/amp-agent
 import:
 - package: github.com/appcelerator/amp
-  version: nats
   subpackages:
   - api/rpc/logs
-  - data/messaging
 - package: github.com/docker/engine-api
   version: ^0.4.0
   subpackages:
