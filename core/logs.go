@@ -115,7 +115,7 @@ func startReadingLogs(ID string, data *ContainerData) {
 						NodeId:      nodeID,
 						ContainerId: ID,
 						Message:     slog,
-						Timestamp:   ntime.String(),
+						Timestamp:   ntime.Format(time.RFC3339Nano),
 						TimeId:      line[8:38],
 					}
 					//if kafka.kafkaReady {
