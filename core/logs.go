@@ -108,7 +108,7 @@ func startReadingLogs(ID string, data *ContainerData) {
 			if len(line) > 39 {
 				slog = strings.TrimSuffix(line[39:], "\n")
 				ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
-				if conf.kafka != "" {
+				if conf.natsURL != "" {
 					logEntry := logs.LogEntry{
 						ServiceName: serviceName,
 						ServiceId:   serviceID,
@@ -116,16 +116,8 @@ func startReadingLogs(ID string, data *ContainerData) {
 						ContainerId: ID,
 						Message:     slog,
 						Timestamp:   ntime.Format(time.RFC3339Nano),
-						TimeId:      line[8:38],
+						TimeId:      line[8:38], //TODO:have a true timeId
 					}
-					//if kafka.kafkaReady {
-					//	kafka.sendLog(mes)
-					//} else {
-					//	fmt.Printf("Kafka not ready anymore, stop reading log on container %s\n", ID)
-					//	data.logsReadError = true
-					//	stream.Close()
-					//	return
-					//}
 					encoded, err := proto.Marshal(&logEntry)
 					if err != nil {
 						log.Printf("error marshalling log entry: %v", err)

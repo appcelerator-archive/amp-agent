@@ -26,6 +26,7 @@ type Agent struct {
 
 //ContainerData data
 type ContainerData struct {
+	name          string
 	labels        map[string]string
 	state         string
 	health        string
@@ -37,9 +38,8 @@ var agent Agent
 var sc stan.Conn
 
 const (
-	clusterID = "test-cluster"
 	clientID  = "amp-agent"
-	natsURL   = "nats://nats:4222"
+	clusterID = "test-cluster"
 )
 
 //AgentInit Connect to docker engine, get initial containers list and start the agent
@@ -49,11 +49,11 @@ func AgentInit(version string) error {
 	conf.init(version)
 	//initKafka()
 	var err error
-	sc, err = stan.Connect(clusterID, clientID, stan.NatsURL(natsURL))
+	sc, err = stan.Connect(clusterID, clientID, stan.NatsURL(conf.natsURL))
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Connected to NATS-Streaming at %s\n", natsURL)
+	log.Printf("Connected to NATS-Streaming at %s\n", conf.natsURL)
 	fmt.Println("Connecting to docker...")
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
@@ -91,7 +91,7 @@ func (agt *Agent) start() {
 func (agt *Agent) updateContainerMap(action string, containerID string) {
 	if action == "start" {
 		agt.addContainer(containerID)
-	} else if action != "create" {
+	} else if action == "destroy" || action == "die" || action == "kill" || action == "stop" {
 		agt.removeContainer(containerID)
 	}
 }
@@ -103,6 +103,7 @@ func (agt *Agent) addContainer(ID string) {
 		inspect, err := agt.client.ContainerInspect(context.Background(), ID)
 		if err == nil {
 			data := ContainerData{
+				name:	       inspect.Name,
 				labels:        inspect.Config.Labels,
 				state:         inspect.State.Status,
 				health:        "",
@@ -112,7 +113,7 @@ func (agt *Agent) addContainer(ID string) {
 			if inspect.State.Health != nil {
 				data.health = inspect.State.Health.Status
 			}
-			fmt.Println("add container", ID)
+			fmt.Println("add container", data.name)
 			agt.containers[ID] = &data
 		} else {
 			fmt.Printf("Container inspect error: %v\n", err)
@@ -122,9 +123,9 @@ func (agt *Agent) addContainer(ID string) {
 
 //Suppress a container from the main container map
 func (agt *Agent) removeContainer(ID string) {
-	_, ok := agent.containers[ID]
+	data, ok := agent.containers[ID]
 	if ok {
-		fmt.Println("remove container", ID)
+		fmt.Println("remove container", data.name)
 		delete(agt.containers, ID)
 	}
 }
@@ -140,9 +141,9 @@ func (agt *Agent) updateContainer(ID string) {
 			if inspect.State.Health != nil {
 				data.health = inspect.State.Health.Status
 			}
-			fmt.Println("update container", ID)
+			fmt.Println("update container", data.name)
 		} else {
-			fmt.Printf("Container inspect error: %v\n", err)
+			fmt.Printf("Container %s inspect error: %v\n", data.name, err)
 		}
 	}
 }

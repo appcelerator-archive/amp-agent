@@ -9,9 +9,7 @@ import (
 //AgentConfig configuration parameters
 type AgentConfig struct {
 	dockerEngine           string
-	kafka                  string
-	kafkaLogsTopic         string
-	kafkaDockerEventsTopic string
+	natsURL	       	       string
 	elasticsearchURL       string
 	apiPort                string
 	period                 int
@@ -29,9 +27,7 @@ func (cfg *AgentConfig) init(version string) {
 //Set default value of configuration
 func (cfg *AgentConfig) setDefault() {
 	cfg.dockerEngine = "unix:///var/run/docker.sock"
-	cfg.kafka = "kafka:9092"
-	cfg.kafkaLogsTopic = "amp-logs"
-	cfg.kafkaDockerEventsTopic = "amp-docker-events"
+	cfg.natsURL = "nats://nats:4222"
 	cfg.elasticsearchURL = "elasticsearch:9200/amp-logs/_search"
 	cfg.apiPort = "3000"
 	cfg.period = 10
@@ -39,13 +35,11 @@ func (cfg *AgentConfig) setDefault() {
 
 //Update config with env variables
 func (cfg *AgentConfig) loadConfigUsingEnvVariable() {
-	cfg.dockerEngine = getStringParameter("AMPAGENT_DOCKER", cfg.dockerEngine)
-	cfg.kafka = getStringParameter("AMPAGENT_KAFKA", cfg.kafka)
-	cfg.kafkaLogsTopic = getStringParameter("AMPAGENT_LOGS_TOPIC", cfg.kafkaLogsTopic)
-	cfg.kafkaDockerEventsTopic = getStringParameter("AMPAGENT_DOCKEREVENTS_TOPIC", cfg.kafkaDockerEventsTopic)
-	cfg.apiPort = getStringParameter("AMPAGENT_PORT", cfg.apiPort)
-	cfg.elasticsearchURL = getStringParameter("AMPAGENT_ELASTICSEARCH", cfg.elasticsearchURL)
-	cfg.period = getIntParameter("AMPAGENT_PERIOD", cfg.period)
+	cfg.dockerEngine = getStringParameter("DOCKER", cfg.dockerEngine)
+	cfg.natsURL = getStringParameter("NATS_URL", cfg.natsURL)
+	cfg.apiPort = getStringParameter("API_PORT", cfg.apiPort)
+	cfg.elasticsearchURL = getStringParameter("ELASTICSEARCH", cfg.elasticsearchURL)
+	cfg.period = getIntParameter("PERIOD", cfg.period)
 }
 
 //display amp-pilot configuration
@@ -54,9 +48,7 @@ func (cfg *AgentConfig) displayConfig(version string) {
 	fmt.Println("----------------------------------------------------------------------------")
 	fmt.Println("Configuration:")
 	fmt.Printf("Docker-engine: %s\n", conf.dockerEngine)
-	fmt.Printf("Kafka addr: %s\n", conf.kafka)
-	fmt.Printf("Kafka log topic: %s\n", conf.kafkaLogsTopic)
-	fmt.Printf("Kafka docker events topic: %s\n", conf.kafkaDockerEventsTopic)
+	fmt.Printf("Nats URL: %s\n", conf.natsURL)
 	fmt.Println("----------------------------------------------------------------------------")
 }
 
