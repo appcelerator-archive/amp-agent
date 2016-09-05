@@ -61,7 +61,7 @@ func AgentInit(version string) error {
 	}
 	agent.client = cli
 	fmt.Println("Connected to Docker: engine-api-cli-1.0")
-	time.Sleep(40 * time.Second) //NATS messages lost bug workarround
+	//time.Sleep(30 * time.Second) //NATS messages lost bug workarround
 	fmt.Println("Extracting containers list...")
 	agent.containers = make(map[string]*ContainerData)
 	ContainerListOptions := types.ContainerListOptions{All: false}
