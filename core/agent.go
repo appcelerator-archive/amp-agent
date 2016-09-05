@@ -26,6 +26,7 @@ type Agent struct {
 
 //ContainerData data
 type ContainerData struct {
+	name          string
 	labels        map[string]string
 	state         string
 	health        string
@@ -48,11 +49,11 @@ func AgentInit(version string) error {
 	conf.init(version)
 	//initKafka()
 	var err error
-	sc, err = stan.Connect(clusterID, clientID, stan.NatsURL(natsURL))
+	sc, err = stan.Connect(clusterID, clientID, stan.NatsURL(conf.natsURL))
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Connected to NATS-Streaming at %s\n", natsURL)
+	log.Printf("Connected to NATS-Streaming at %s\n", conf.natsURL)
 	fmt.Println("Connecting to docker...")
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
@@ -102,6 +103,7 @@ func (agt *Agent) addContainer(ID string) {
 		inspect, err := agt.client.ContainerInspect(context.Background(), ID)
 		if err == nil {
 			data := ContainerData{
+				name:	       inspect.Name,
 				labels:        inspect.Config.Labels,
 				state:         inspect.State.Status,
 				health:        "",

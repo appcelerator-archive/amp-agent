@@ -108,7 +108,7 @@ func startReadingLogs(ID string, data *ContainerData) {
 			if len(line) > 39 {
 				slog = strings.TrimSuffix(line[39:], "\n")
 				ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
-				if conf.kafka != "" {
+				if conf.natsURL != "" {
 					logEntry := logs.LogEntry{
 						ServiceName: serviceName,
 						ServiceId:   serviceID,

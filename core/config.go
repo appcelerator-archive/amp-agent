@@ -9,7 +9,7 @@ import (
 //AgentConfig configuration parameters
 type AgentConfig struct {
 	dockerEngine           string
-	natUrls		       string
+	natsURL	       	       string
 	elasticsearchURL       string
 	apiPort                string
 	period                 int
@@ -27,7 +27,7 @@ func (cfg *AgentConfig) init(version string) {
 //Set default value of configuration
 func (cfg *AgentConfig) setDefault() {
 	cfg.dockerEngine = "unix:///var/run/docker.sock"
-	cfg.natsUrl = "nats://nats:4222"
+	cfg.natsURL = "nats://nats:4222"
 	cfg.elasticsearchURL = "elasticsearch:9200/amp-logs/_search"
 	cfg.apiPort = "3000"
 	cfg.period = 10
@@ -36,7 +36,7 @@ func (cfg *AgentConfig) setDefault() {
 //Update config with env variables
 func (cfg *AgentConfig) loadConfigUsingEnvVariable() {
 	cfg.dockerEngine = getStringParameter("DOCKER", cfg.dockerEngine)
-	cfg.natsUrl = getStringParameter("NATS_URL", cfg.kafka)
+	cfg.natsURL = getStringParameter("NATS_URL", cfg.natsURL)
 	cfg.apiPort = getStringParameter("API_PORT", cfg.apiPort)
 	cfg.elasticsearchURL = getStringParameter("ELASTICSEARCH", cfg.elasticsearchURL)
 	cfg.period = getIntParameter("PERIOD", cfg.period)
