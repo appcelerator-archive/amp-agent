@@ -50,9 +50,10 @@ func startEventStream(stream io.ReadCloser) {
 			}
 			fmt.Printf("Docker event: action=%s containerId=%s\n", event.Action, event.Actor.ID)
 			agent.updateContainerMap(event.Action, event.Actor.ID)
-			if conf.kafka != "" && kafka.kafkaReady {
-				kafka.sendEvent(event)
-			}
+			//if conf.kafka != "" && kafka.kafkaReady {
+			//	kafka.sendEvent(event)
+			//}
+			// TODO: send to NATS
 		}
 	}()
 }

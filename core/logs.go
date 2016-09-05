@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/appcelerator/amp/api/rpc/logs"
 	"github.com/docker/engine-api/types"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -16,25 +19,25 @@ import (
 const elasticSearchTimeIDQuery = `{"query":{"match":{"container_id":"[container_id]"}},"sort":{"time_id":{"order":"desc"}},"from":0,"size":1}`
 
 func updateLogsStream() {
-	if kafka.kafkaReady {
-		for ID, data := range agent.containers {
-			if data.logsStream == nil || data.logsReadError {
-				lastTimeID := getLastTimeID(ID)
-				if lastTimeID == "" {
-					fmt.Printf("open logs stream from the begining on container %s\n", ID)
-				} else {
-					fmt.Printf("open logs stream from time_id=%s on container %s\n", lastTimeID, ID)
-				}
-				stream, err := openLogsStream(ID, lastTimeID)
-				if err != nil {
-					fmt.Printf("Error opening logs stream on container: %s\n", ID)
-				} else {
-					data.logsStream = stream
-					startReadingLogs(ID, data)
-				}
+	//if kafka.kafkaReady {
+	for ID, data := range agent.containers {
+		if data.logsStream == nil || data.logsReadError {
+			lastTimeID := getLastTimeID(ID)
+			if lastTimeID == "" {
+				fmt.Printf("open logs stream from the begining on container %s\n", ID)
+			} else {
+				fmt.Printf("open logs stream from time_id=%s on container %s\n", lastTimeID, ID)
+			}
+			stream, err := openLogsStream(ID, lastTimeID)
+			if err != nil {
+				fmt.Printf("Error opening logs stream on container: %s\n", ID)
+			} else {
+				data.logsStream = stream
+				startReadingLogs(ID, data)
 			}
 		}
 	}
+	//}
 }
 
 func openLogsStream(ID string, lastTimeID string) (io.ReadCloser, error) {
@@ -106,23 +109,30 @@ func startReadingLogs(ID string, data *ContainerData) {
 				slog = strings.TrimSuffix(line[39:], "\n")
 				ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
 				if conf.kafka != "" {
-					mes := logMessage{
+					logEntry := logs.LogEntry{
 						ServiceName: serviceName,
-						ServiceUUID: serviceName,
-						ServiceID:   serviceID,
-						NodeID:      nodeID,
-						ContainerID: ID,
+						ServiceId:   serviceID,
+						NodeId:      nodeID,
+						ContainerId: ID,
 						Message:     slog,
-						Timestamp:   ntime,
-						TimeID:      line[8:38],
+						Timestamp:   ntime.Format(time.RFC3339Nano),
+						TimeId:      line[8:38],
 					}
-					if kafka.kafkaReady {
-						kafka.sendLog(mes)
-					} else {
-						fmt.Printf("Kafka not ready anymore, stop reading log on container %s\n", ID)
-						data.logsReadError = true
-						stream.Close()
-						return
+					//if kafka.kafkaReady {
+					//	kafka.sendLog(mes)
+					//} else {
+					//	fmt.Printf("Kafka not ready anymore, stop reading log on container %s\n", ID)
+					//	data.logsReadError = true
+					//	stream.Close()
+					//	return
+					//}
+					encoded, err := proto.Marshal(&logEntry)
+					if err != nil {
+						log.Printf("error marshalling log entry: %v", err)
+					}
+					_, err = sc.PublishAsync("amp-logs", encoded, nil)
+					if err != nil {
+						log.Printf("error sending log entry: %v", err)
 					}
 				}
 			} else {

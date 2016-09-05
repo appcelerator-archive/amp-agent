@@ -1,9 +1,20 @@
 package: github.com/appcelerator/amp-agent
 import:
-- package: github.com/Shopify/sarama
-- package: github.com/davecgh/go-spew/spew
-- package: github.com/docker/engine-api/client
-- package: github.com/docker/engine-api/types
-- package: github.com/docker/engine-api/types/events
-- package: github.com/docker/engine-api/types/filters
-- package: golang.org/x/net/context
+- package: github.com/appcelerator/amp
+  subpackages:
+  - api/rpc/logs
+- package: github.com/docker/engine-api
+  version: ^0.4.0
+  subpackages:
+  - client
+  - types
+  - types/events
+  - types/filters
+- package: github.com/golang/protobuf
+  subpackages:
+  - proto
+- package: golang.org/x/net
+  subpackages:
+  - context
+testImport:
+- package: github.com/haoxins/supertest

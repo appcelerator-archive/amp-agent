@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
+	"github.com/nats-io/go-nats-streaming"
 	"golang.org/x/net/context"
 	"io"
+	"log"
 	"os"
 	"os/signal"
 	"runtime"
@@ -32,13 +34,26 @@ type ContainerData struct {
 }
 
 var agent Agent
+var sc stan.Conn
+
+const (
+	clusterID = "test-cluster"
+	clientID  = "amp-agent"
+	natsURL   = "nats://nats:4222"
+)
 
 //AgentInit Connect to docker engine, get initial containers list and start the agent
 func AgentInit(version string) error {
 	runtime.GOMAXPROCS(50)
 	agent.trapSignal()
 	conf.init(version)
-	initKafka()
+	//initKafka()
+	var err error
+	sc, err = stan.Connect(clusterID, clientID, stan.NatsURL(natsURL))
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Connected to NATS-Streaming at %s\n", natsURL)
 	fmt.Println("Connecting to docker...")
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
@@ -132,7 +147,7 @@ func (agt *Agent) updateContainer(ID string) {
 	}
 }
 
-//Launch a routine to catch SIGTERM Signal
+// Launch a routine to catch SIGTERM Signal
 func (agt *Agent) trapSignal() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
@@ -142,7 +157,8 @@ func (agt *Agent) trapSignal() {
 		fmt.Println("\namp-agent received SIGTERM signal")
 		agt.eventsStream.Close()
 		closeLogsStreams()
-		kafka.close()
+		//kafka.close()
+		sc.Close()
 		os.Exit(1)
 	}()
 }
