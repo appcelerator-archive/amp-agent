@@ -24,13 +24,13 @@ func updateLogsStream() {
 		if data.logsStream == nil || data.logsReadError {
 			lastTimeID := getLastTimeID(ID)
 			if lastTimeID == "" {
-				fmt.Printf("open logs stream from the begining on container %s\n", ID)
+				fmt.Printf("open logs stream from the begining on container %s\n", data.name)
 			} else {
-				fmt.Printf("open logs stream from time_id=%s on container %s\n", lastTimeID, ID)
+				fmt.Printf("open logs stream from time_id=%s on container %s\n", lastTimeID, data.name)
 			}
 			stream, err := openLogsStream(ID, lastTimeID)
 			if err != nil {
-				fmt.Printf("Error opening logs stream on container: %s\n", ID)
+				fmt.Printf("Error opening logs stream on container: %s\n", data.name)
 			} else {
 				data.logsStream = stream
 				startReadingLogs(ID, data)
@@ -93,13 +93,15 @@ func startReadingLogs(ID string, data *ContainerData) {
 		stream := data.logsStream
 		serviceName := data.labels["com.docker.swarm.service.name"]
 		serviceID := data.labels["com.docker.swarm.service.id"]
+		taskName := data.labels["com.docker.swarm.task.name"]
+		taskID := data.labels["com.docker.swarm.task.id"]		
 		nodeID := data.labels["com.docker.swarm.node.id"]
 		reader := bufio.NewReader(stream)
-		fmt.Printf("start reading logs on container: %s\n", ID)
+		fmt.Printf("start reading logs on container: %s\n", data.name)
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
-				fmt.Printf("stop reading log on container %s: %v\n", ID, err)
+				fmt.Printf("stop reading log on container %s: %v\n", data.name, err)
 				data.logsReadError = true
 				stream.Close()
 				return
@@ -112,6 +114,8 @@ func startReadingLogs(ID string, data *ContainerData) {
 					logEntry := logs.LogEntry{
 						ServiceName: serviceName,
 						ServiceId:   serviceID,
+						TaskName:    taskName,
+						TaskId:	     taskID,
 						NodeId:      nodeID,
 						ContainerId: ID,
 						Message:     slog,
