@@ -37,9 +37,8 @@ var agent Agent
 var sc stan.Conn
 
 const (
-	clusterID = "test-cluster"
 	clientID  = "amp-agent"
-	natsURL   = "nats://nats:4222"
+	clusterID = "test-cluster"
 )
 
 //AgentInit Connect to docker engine, get initial containers list and start the agent
@@ -91,7 +90,7 @@ func (agt *Agent) start() {
 func (agt *Agent) updateContainerMap(action string, containerID string) {
 	if action == "start" {
 		agt.addContainer(containerID)
-	} else if action != "create" {
+	} else if action == "destroy" || action == "die" || action == "kill" || action == "stop" {
 		agt.removeContainer(containerID)
 	}
 }
@@ -112,7 +111,7 @@ func (agt *Agent) addContainer(ID string) {
 			if inspect.State.Health != nil {
 				data.health = inspect.State.Health.Status
 			}
-			fmt.Println("add container", ID)
+			fmt.Println("add container", data.name)
 			agt.containers[ID] = &data
 		} else {
 			fmt.Printf("Container inspect error: %v\n", err)
@@ -122,9 +121,9 @@ func (agt *Agent) addContainer(ID string) {
 
 //Suppress a container from the main container map
 func (agt *Agent) removeContainer(ID string) {
-	_, ok := agent.containers[ID]
+	data, ok := agent.containers[ID]
 	if ok {
-		fmt.Println("remove container", ID)
+		fmt.Println("remove container", data.name)
 		delete(agt.containers, ID)
 	}
 }
@@ -140,9 +139,9 @@ func (agt *Agent) updateContainer(ID string) {
 			if inspect.State.Health != nil {
 				data.health = inspect.State.Health.Status
 			}
-			fmt.Println("update container", ID)
+			fmt.Println("update container", data.name)
 		} else {
-			fmt.Printf("Container inspect error: %v\n", err)
+			fmt.Printf("Container %s inspect error: %v\n", data.name, err)
 		}
 	}
 }

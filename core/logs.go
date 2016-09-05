@@ -116,16 +116,8 @@ func startReadingLogs(ID string, data *ContainerData) {
 						ContainerId: ID,
 						Message:     slog,
 						Timestamp:   ntime.Format(time.RFC3339Nano),
-						TimeId:      line[8:38],
+						TimeId:      line[8:38], //TODO:have a true timeId
 					}
-					//if kafka.kafkaReady {
-					//	kafka.sendLog(mes)
-					//} else {
-					//	fmt.Printf("Kafka not ready anymore, stop reading log on container %s\n", ID)
-					//	data.logsReadError = true
-					//	stream.Close()
-					//	return
-					//}
 					encoded, err := proto.Marshal(&logEntry)
 					if err != nil {
 						log.Printf("error marshalling log entry: %v", err)
