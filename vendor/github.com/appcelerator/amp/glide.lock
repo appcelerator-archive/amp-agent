@@ -1,10 +1,10 @@
-hash: bb2a84e4e9d836dfd207eca74b360255777c55777c645343e222b273249b9eb5
-updated: 2016-08-30T22:07:50.660313454Z
+hash: 49919e364308a27c1e24b1673aa447a6a4f50a111adbf37b39049dc2dabd7c90
+updated: 2016-09-04T10:51:08.605640387-07:00
 imports:
 - name: github.com/cloudfoundry-incubator/candiedyaml
   version: 99c3df83b51532e3615f851d8c2dbb638f5313bf
 - name: github.com/coreos/etcd
-  version: 9efa00d1030d4bf62eb8e5ec130023aeb1b8e2d0
+  version: 5695120efcfdc05b8ba51be2018d99c2937b41d0
   subpackages:
   - auth/authpb
   - clientv3
@@ -16,6 +16,8 @@ imports:
   version: 6cf5744a041a0022271cefed95ba843f6d87fd51
   subpackages:
   - spew
+- name: github.com/docker/engine-api
+  version: 3d1601b9d2436a70b0dfc045a23f6503d19195df
 - name: github.com/eapache/go-resiliency
   version: b86b1ec0dd4209a588dc1285cdd471e73525c0b3
   subpackages:
@@ -30,6 +32,12 @@ imports:
   version: f12c6236fe7b5cf6bcf30e5935d08cb079d78334
 - name: github.com/ghodss/yaml
   version: aa0c862057666179de291b67d9f093d12b5a8473
+- name: github.com/gogo/protobuf
+  version: 25ba8223d7d87221953053beb97ebf159b982257
+  subpackages:
+  - gogoproto
+  - proto
+  - protoc-gen-gogo/descriptor
 - name: github.com/golang/protobuf
   version: 1f49d83d9aa00e6ce4fc8258c71cc7786aec968a
   subpackages:
@@ -38,7 +46,7 @@ imports:
 - name: github.com/golang/snappy
   version: d9eb7a3d35ec988b8585d4a0068e462c27d28380
 - name: github.com/google/go-github
-  version: a59a35745f99ad92d70d69a9f180767063aa4bf3
+  version: 6d1b527d46849e8fc9238298ebe86dced178609c
   subpackages:
   - github
 - name: github.com/google/go-querystring
@@ -52,7 +60,7 @@ imports:
   - runtime/internal
   - utilities
 - name: github.com/hashicorp/hcl
-  version: baeb59c710717b06aac1dbe2270e8192ec593244
+  version: 99df0eb941dd8ddbc83d3f3605a34f6a686ac85e
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -67,7 +75,7 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/influxdata/influxdb
-  version: 05ddf85d245a3bd26e9e3a16c5036c07df9ab3b9
+  version: a6f6fda415dd6739436c7a5e9a93086cb9c27acf
   subpackages:
   - client/v2
   - models
@@ -86,6 +94,20 @@ imports:
   version: 756f7b183b7ab78acdbbee5c7f392838ed459dda
 - name: github.com/mitchellh/mapstructure
   version: ca63d7c062ee3c9f34db231e352b60012b4fd0c1
+- name: github.com/nats-io/go-nats-streaming
+  version: 1875d675b301931c7037d118eac68dca8c99ceed
+  subpackages:
+  - pb
+- name: github.com/nats-io/nats
+  version: ea8b4fd12ebb823073c0004b9f09ac8748f4f165
+  subpackages:
+  - encoders/builtin
+- name: github.com/nats-io/nuid
+  version: a5152d67cf63cbfb5d992a395458722a45194715
+- name: github.com/opencontainers/runc
+  version: 04f275d4601ca7e5ff9460cec7f65e8dd15443ec
+  subpackages:
+  - libcontainer/user
 - name: github.com/pelletier/go-buffruneio
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
@@ -94,10 +116,6 @@ imports:
   version: 17b591df37844cde689f4d5813e5cea0927d8dd2
 - name: github.com/pkg/sftp
   version: a71e8f580e3b622ebff585309160b1cc549ef4d2
-- name: github.com/pmezard/go-difflib
-  version: 792786c7400a136282c1664665ae0a8db921c6c2
-  subpackages:
-  - difflib
 - name: github.com/Shopify/sarama
   version: bd61cae2be85fa6ff40eb23dcdd24567967ac2ae
 - name: github.com/spf13/afero
@@ -115,12 +133,8 @@ imports:
   version: 103ce5cd2042f2fe629c1957abb64ab3e7f50235
 - name: github.com/spf13/viper
   version: 16990631d4aa7e38f73dbbbf37fa13e67c648531
-- name: github.com/stretchr/testify
-  version: f390dcf405f7b83c997eac1b06768bb9f44dec18
-  subpackages:
-  - assert
 - name: golang.org/x/crypto
-  version: b13fc1fd382d01861b16b2e6474487d3d4d27f20
+  version: 9e590154d2353f3f5e1b24da7275686040dcf491
   subpackages:
   - curve25519
   - ed25519
@@ -128,7 +142,7 @@ imports:
   - ssh
   - ssh/terminal
 - name: golang.org/x/net
-  version: 6250b412798208e6c90b03b7c4f226de5aa299e2
+  version: 1358eff22f0dd0c54fc521042cc607f6ff4b531a
   subpackages:
   - context
   - context/ctxhttp
@@ -138,7 +152,7 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/oauth2
-  version: 4d549c893be7d4011bab739cc585d091a7188d27
+  version: 3c3a985cb79f52a3190fbc056984415ca6763d01
   subpackages:
   - internal
 - name: golang.org/x/sys
@@ -146,7 +160,7 @@ imports:
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: d69c40b4be55797923cec7457fac7a244d91a9b6
+  version: ceefd2213ed29504fff30155163c8f59827734f3
   subpackages:
   - transform
   - unicode/norm
@@ -172,10 +186,18 @@ imports:
   - peer
   - transport
 - name: gopkg.in/olivere/elastic.v3
-  version: edce13c297077bd11b936063f7572485fd9cbbb6
+  version: f9fd15e1ea3a50bbe58c72a4b8820499fe3bb0e1
   subpackages:
   - backoff
   - uritemplates
 - name: gopkg.in/yaml.v2
   version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
-testImports: []
+testImports:
+- name: github.com/pmezard/go-difflib
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: f390dcf405f7b83c997eac1b06768bb9f44dec18
+  subpackages:
+  - assert

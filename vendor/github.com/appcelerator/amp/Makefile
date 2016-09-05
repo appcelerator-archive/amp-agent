@@ -40,17 +40,22 @@ TAG := latest
 IMAGE := $(OWNER)/amp:$(TAG)
 
 # tools
-DOCKER_RUN := docker run -t --rm
+# need UID:GID because files created by containerized tools when mounting
+# cwd are set to root:root
+UG := $(shell echo "$$(id -u $${USER}):$$(id -g $${USER})")
+
+DOCKER_RUN := docker run -t --rm -u $(UG)
 
 GOTOOLS := appcelerator/gotools2
 GOOS := $(shell uname | tr [:upper:] [:lower:])
 GOARCH := amd64
-GO := $(DOCKER_RUN) --name go -v $${HOME}/.ssh:/root/.ssh -v $${GOPATH}/bin:/go/bin -v $${PWD}:/go/src/$(REPO) -w /go/src/$(REPO) -e GOOS=$(GOOS) -e GOARCH=$(GOARCH) $(GOTOOLS) go
+GO := $(DOCKER_RUN) --name go -v $${HOME}/.ssh:/root/.ssh -v $${PWD}:/go/src/$(REPO) -w /go/src/$(REPO) -e GOOS=$(GOOS) -e GOARCH=$(GOARCH) $(GOTOOLS) go
 GOTEST := $(DOCKER_RUN) --name go -v $${HOME}/.ssh:/root/.ssh -v $${GOPATH}/bin:/go/bin -v $${PWD}:/go/src/$(REPO) -w /go/src/$(REPO) $(GOTOOLS) go test -v
 
-GLIDE := $(DOCKER_RUN) -v $${HOME}/.ssh:/root/.ssh -v $${PWD}:/go/src/$(REPO) -w /go/src/$(REPO) $(GOTOOLS) glide
-GLIDE_INSTALL := $(GLIDE) install -v
-GLIDE_UPDATE := $(GLIDE) update -v
+GLIDE_DIRS := $${HOME}/.glide $${PWD}/.glide vendor
+GLIDE := $(DOCKER_RUN) -u $(UG) -v $${HOME}/.ssh:/root/.ssh -v $${HOME}/.glide:/root/.glide -v $${PWD}:/go/src/$(REPO) -w /go/src/$(REPO) $(GOTOOLS) glide $${GLIDE_OPTS}
+GLIDE_INSTALL := $(GLIDE) install
+GLIDE_UPDATE := $(GLIDE) update
 
 all: version check build
 
@@ -88,7 +93,7 @@ build-server: proto
 	@hack/build $(SERVER)
 
 proto: $(PROTOFILES)
-	@for DIR in $(DIRS); do cd $(BASEDIR)/$${DIR}; ls *.proto > /dev/null 2>&1 && docker run --rm --name protoc -t -v $${PWD}:/go/src -v /var/run/docker.sock:/var/run/docker.sock appcelerator/protoc *.proto --go_out=plugins=grpc:. || true; done
+	@for DIR in $(DIRS); do cd $(BASEDIR)/$${DIR}; ls *.proto > /dev/null 2>&1 && docker run -u $(UG) --rm --name protoc -t -v $${PWD}:/go/src -v /var/run/docker.sock:/var/run/docker.sock appcelerator/protoc *.proto --go_out=plugins=grpc:. || true; done
 
 # used to install when you're already inside a container
 install-host: proto-host
@@ -117,7 +122,7 @@ run: build-image
 test: test-storage test-influx test-stat test-logs test-project test-build test-service
 
 test-storage:
-	@go $(REPO)/data/storage/etcd
+	@go test -v $(REPO)/data/storage/etcd
 
 test-influx:
 	@go test -v $(REPO)/data/influx

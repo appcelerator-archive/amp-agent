@@ -413,7 +413,8 @@ func newTest(t *testing.T, e env) *test {
 // call to te.tearDown to clean up.
 func (te *test) startServer(ts testpb.TestServiceServer) {
 	te.testServer = ts
-	te.t.Logf("Running test in %s environment...", te.e.name)
+	e := te.e
+	te.t.Logf("Running test in %s environment...", e.name)
 	sopts := []grpc.ServerOption{grpc.MaxConcurrentStreams(te.maxStream)}
 	if te.maxMsgSize > 0 {
 		sopts = append(sopts, grpc.MaxMsgSize(te.maxMsgSize))
@@ -431,12 +432,12 @@ func (te *test) startServer(ts testpb.TestServiceServer) {
 		sopts = append(sopts, grpc.StreamInterceptor(te.streamInt))
 	}
 	la := "localhost:0"
-	switch te.e.network {
+	switch e.network {
 	case "unix":
 		la = "/tmp/testsock" + fmt.Sprintf("%d", time.Now())
 		syscall.Unlink(la)
 	}
-	lis, err := net.Listen(te.e.network, la)
+	lis, err := net.Listen(e.network, la)
 	if err != nil {
 		te.t.Fatalf("Failed to listen: %v", err)
 	}
@@ -449,12 +450,10 @@ func (te *test) startServer(ts testpb.TestServiceServer) {
 		sopts = append(sopts, grpc.Creds(creds))
 	case "clientAlwaysFailCred":
 		sopts = append(sopts, grpc.Creds(clientAlwaysFailCred{}))
-	case "clientTimeoutCreds":
-		sopts = append(sopts, grpc.Creds(&clientTimeoutCreds{}))
 	}
 	s := grpc.NewServer(sopts...)
 	te.srv = s
-	if te.e.httpHandler {
+	if e.httpHandler {
 		internal.TestingUseHandlerImpl(s)
 	}
 	if te.healthServer != nil {
@@ -464,7 +463,7 @@ func (te *test) startServer(ts testpb.TestServiceServer) {
 		testpb.RegisterTestServiceServer(s, te.testServer)
 	}
 	addr := la
-	switch te.e.network {
+	switch e.network {
 	case "unix":
 	default:
 		_, port, err := net.SplitHostPort(lis.Addr().String())
@@ -502,8 +501,6 @@ func (te *test) clientConn() *grpc.ClientConn {
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	case "clientAlwaysFailCred":
 		opts = append(opts, grpc.WithTransportCredentials(clientAlwaysFailCred{}))
-	case "clientTimeoutCreds":
-		opts = append(opts, grpc.WithTransportCredentials(&clientTimeoutCreds{}))
 	default:
 		opts = append(opts, grpc.WithInsecure())
 	}
@@ -565,7 +562,7 @@ func testTimeoutOnDeadServer(t *testing.T, e env) {
 	te.srv.Stop()
 	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
 	if _, err := tc.EmptyCall(ctx, &testpb.Empty{}, grpc.FailFast(false)); grpc.Code(err) != codes.DeadlineExceeded {
-		t.Fatalf("TestService/EmptyCall(%v, _) = _, %v, want _, error code: %s", ctx, err, codes.DeadlineExceeded)
+		t.Fatalf("TestService/EmptyCall(%v, _) = _, %v, want _, error code: %d", ctx, err, codes.DeadlineExceeded)
 	}
 	awaitNewConnLogOutput()
 }
@@ -839,19 +836,17 @@ func testFailFast(t *testing.T, e env) {
 	te.srv.Stop()
 	// Loop until the server teardown is propagated to the client.
 	for {
-		_, err := tc.EmptyCall(context.Background(), &testpb.Empty{})
-		if grpc.Code(err) == codes.Unavailable {
+		if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}); grpc.Code(err) == codes.Unavailable {
 			break
 		}
-		fmt.Printf("%v.EmptyCall(_, _) = _, %v", tc, err)
 		time.Sleep(10 * time.Millisecond)
 	}
 	// The client keeps reconnecting and ongoing fail-fast RPCs should fail with code.Unavailable.
 	if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}); grpc.Code(err) != codes.Unavailable {
-		t.Fatalf("TestService/EmptyCall(_, _, _) = _, %v, want _, error code: %s", err, codes.Unavailable)
+		t.Fatalf("TestService/EmptyCall(_, _, _) = _, %v, want _, error code: %d", err, codes.Unavailable)
 	}
 	if _, err := tc.StreamingInputCall(context.Background()); grpc.Code(err) != codes.Unavailable {
-		t.Fatalf("TestService/StreamingInputCall(_) = _, %v, want _, error code: %s", err, codes.Unavailable)
+		t.Fatalf("TestService/StreamingInputCall(_) = _, %v, want _, error code: %d", err, codes.Unavailable)
 	}
 
 	awaitNewConnLogOutput()
@@ -1111,7 +1106,7 @@ func testExceedMsgLimit(t *testing.T, e env) {
 		Payload:      payload,
 	}
 	if _, err := tc.UnaryCall(context.Background(), req); err == nil || grpc.Code(err) != codes.Internal {
-		t.Fatalf("TestService/UnaryCall(_, _) = _, %v, want _, error code: %s", err, codes.Internal)
+		t.Fatalf("TestService/UnaryCall(_, _) = _, %v, want _, error code: %d", err, codes.Internal)
 	}
 
 	stream, err := tc.FullDuplexCall(te.ctx)
@@ -1138,7 +1133,7 @@ func testExceedMsgLimit(t *testing.T, e env) {
 		t.Fatalf("%v.Send(%v) = %v, want <nil>", stream, sreq, err)
 	}
 	if _, err := stream.Recv(); err == nil || grpc.Code(err) != codes.Internal {
-		t.Fatalf("%v.Recv() = _, %v, want _, error code: %s", stream, err, codes.Internal)
+		t.Fatalf("%v.Recv() = _, %v, want _, error code: %d", stream, err, codes.Internal)
 	}
 }
 
@@ -1330,7 +1325,7 @@ func testRPCTimeout(t *testing.T, e env) {
 	for i := -1; i <= 10; i++ {
 		ctx, _ := context.WithTimeout(context.Background(), time.Duration(i)*time.Millisecond)
 		if _, err := tc.UnaryCall(ctx, req); grpc.Code(err) != codes.DeadlineExceeded {
-			t.Fatalf("TestService/UnaryCallv(_, _) = _, %v; want <nil>, error code: %s", err, codes.DeadlineExceeded)
+			t.Fatalf("TestService/UnaryCallv(_, _) = _, %v; want <nil>, error code: %d", err, codes.DeadlineExceeded)
 		}
 	}
 }
@@ -1367,7 +1362,7 @@ func testCancel(t *testing.T, e env) {
 	ctx, cancel := context.WithCancel(context.Background())
 	time.AfterFunc(1*time.Millisecond, cancel)
 	if r, err := tc.UnaryCall(ctx, req); grpc.Code(err) != codes.Canceled {
-		t.Fatalf("TestService/UnaryCall(_, _) = %v, %v; want _, error code: %s", r, err, codes.Canceled)
+		t.Fatalf("TestService/UnaryCall(_, _) = %v, %v; want _, error code: %d", r, err, codes.Canceled)
 	}
 	awaitNewConnLogOutput()
 }
@@ -1690,7 +1685,7 @@ func testFailedServerStreaming(t *testing.T, e env) {
 
 // concurrentSendServer is a TestServiceServer whose
 // StreamingOutputCall makes ten serial Send calls, sending payloads
-// "0".."9", inclusive.  TestServerStreamingConcurrent verifies they
+// "0".."9", inclusive.  TestServerStreaming_Concurrent verifies they
 // were received in the correct order, and that there were no races.
 //
 // All other TestServiceServer methods crash if called.
@@ -1710,14 +1705,14 @@ func (s concurrentSendServer) StreamingOutputCall(args *testpb.StreamingOutputCa
 }
 
 // Tests doing a bunch of concurrent streaming output calls.
-func TestServerStreamingConcurrent(t *testing.T) {
+func TestServerStreaming_Concurrent(t *testing.T) {
 	defer leakCheck(t)()
 	for _, e := range listTestEnv() {
-		testServerStreamingConcurrent(t, e)
+		testServerStreaming_Concurrent(t, e)
 	}
 }
 
-func testServerStreamingConcurrent(t *testing.T, e env) {
+func testServerStreaming_Concurrent(t *testing.T, e env) {
 	te := newTest(t, e)
 	te.startServer(concurrentSendServer{})
 	defer te.tearDown()
@@ -2165,14 +2160,14 @@ func (s *funcServer) StreamingInputCall(stream testpb.TestService_StreamingInput
 	return s.streamingInputCall(stream)
 }
 
-func TestClientRequestBodyErrorUnexpectedEOF(t *testing.T) {
+func TestClientRequestBodyError_UnexpectedEOF(t *testing.T) {
 	defer leakCheck(t)()
 	for _, e := range listTestEnv() {
-		testClientRequestBodyErrorUnexpectedEOF(t, e)
+		testClientRequestBodyError_UnexpectedEOF(t, e)
 	}
 }
 
-func testClientRequestBodyErrorUnexpectedEOF(t *testing.T, e env) {
+func testClientRequestBodyError_UnexpectedEOF(t *testing.T, e env) {
 	te := newTest(t, e)
 	ts := &funcServer{unaryCall: func(ctx context.Context, in *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
 		errUnexpectedCall := errors.New("unexpected call func server method")
@@ -2189,14 +2184,14 @@ func testClientRequestBodyErrorUnexpectedEOF(t *testing.T, e env) {
 	})
 }
 
-func TestClientRequestBodyErrorCloseAfterLength(t *testing.T) {
+func TestClientRequestBodyError_CloseAfterLength(t *testing.T) {
 	defer leakCheck(t)()
 	for _, e := range listTestEnv() {
-		testClientRequestBodyErrorCloseAfterLength(t, e)
+		testClientRequestBodyError_CloseAfterLength(t, e)
 	}
 }
 
-func testClientRequestBodyErrorCloseAfterLength(t *testing.T, e env) {
+func testClientRequestBodyError_CloseAfterLength(t *testing.T, e env) {
 	te := newTest(t, e)
 	te.declareLogNoise("Server.processUnaryRPC failed to write status")
 	ts := &funcServer{unaryCall: func(ctx context.Context, in *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
@@ -2214,14 +2209,14 @@ func testClientRequestBodyErrorCloseAfterLength(t *testing.T, e env) {
 	})
 }
 
-func TestClientRequestBodyErrorCancel(t *testing.T) {
+func TestClientRequestBodyError_Cancel(t *testing.T) {
 	defer leakCheck(t)()
 	for _, e := range listTestEnv() {
-		testClientRequestBodyErrorCancel(t, e)
+		testClientRequestBodyError_Cancel(t, e)
 	}
 }
 
-func testClientRequestBodyErrorCancel(t *testing.T, e env) {
+func testClientRequestBodyError_Cancel(t *testing.T, e env) {
 	te := newTest(t, e)
 	gotCall := make(chan bool, 1)
 	ts := &funcServer{unaryCall: func(ctx context.Context, in *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
@@ -2251,14 +2246,14 @@ func testClientRequestBodyErrorCancel(t *testing.T, e env) {
 	})
 }
 
-func TestClientRequestBodyErrorCancelStreamingInput(t *testing.T) {
+func TestClientRequestBodyError_Cancel_StreamingInput(t *testing.T) {
 	defer leakCheck(t)()
 	for _, e := range listTestEnv() {
-		testClientRequestBodyErrorCancelStreamingInput(t, e)
+		testClientRequestBodyError_Cancel_StreamingInput(t, e)
 	}
 }
 
-func testClientRequestBodyErrorCancelStreamingInput(t *testing.T, e env) {
+func testClientRequestBodyError_Cancel_StreamingInput(t *testing.T, e env) {
 	te := newTest(t, e)
 	recvErr := make(chan error, 1)
 	ts := &funcServer{streamingInputCall: func(stream testpb.TestService_StreamingInputCallServer) error {
@@ -2288,12 +2283,12 @@ func testClientRequestBodyErrorCancelStreamingInput(t *testing.T, e env) {
 
 const clientAlwaysFailCredErrorMsg = "clientAlwaysFailCred always fails"
 
-var errClientAlwaysFailCred = errors.New(clientAlwaysFailCredErrorMsg)
+var clientAlwaysFailCredError = errors.New(clientAlwaysFailCredErrorMsg)
 
 type clientAlwaysFailCred struct{}
 
 func (c clientAlwaysFailCred) ClientHandshake(ctx context.Context, addr string, rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	return nil, nil, errClientAlwaysFailCred
+	return nil, nil, clientAlwaysFailCredError
 }
 func (c clientAlwaysFailCred) ServerHandshake(rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
 	return rawConn, nil, nil
@@ -2304,7 +2299,7 @@ func (c clientAlwaysFailCred) Info() credentials.ProtocolInfo {
 
 func TestDialWithBlockErrorOnBadCertificates(t *testing.T) {
 	te := newTest(t, env{name: "bad-cred", network: "tcp", security: "clientAlwaysFailCred", balancer: true})
-	te.startServer(&testServer{security: te.e.security})
+	te.startServer(&testServer{security: "clientAlwaysFailCred"})
 	defer te.tearDown()
 
 	var (
@@ -2313,124 +2308,44 @@ func TestDialWithBlockErrorOnBadCertificates(t *testing.T) {
 	)
 	opts = append(opts, grpc.WithTransportCredentials(clientAlwaysFailCred{}), grpc.WithBlock())
 	te.cc, err = grpc.Dial(te.srvAddr, opts...)
-	if err != errClientAlwaysFailCred {
-		te.t.Fatalf("Dial(%q) = %v, want %v", te.srvAddr, err, errClientAlwaysFailCred)
+	if err != clientAlwaysFailCredError {
+		te.t.Fatalf("Dial(%q) = %v, want %v", te.srvAddr, err, clientAlwaysFailCredError)
 	}
 }
 
 func TestFailFastRPCErrorOnBadCertificates(t *testing.T) {
 	te := newTest(t, env{name: "bad-cred", network: "tcp", security: "clientAlwaysFailCred", balancer: true})
-	te.startServer(&testServer{security: te.e.security})
+	te.startServer(&testServer{security: "clientAlwaysFailCred"})
 	defer te.tearDown()
 
 	cc := te.clientConn()
 	tc := testpb.NewTestServiceClient(cc)
 	if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}); !strings.Contains(err.Error(), clientAlwaysFailCredErrorMsg) {
-		te.t.Fatalf("TestService/EmptyCall(_, _) = _, %v, want err.Error() contains %q", err, clientAlwaysFailCredErrorMsg)
+		te.t.Fatalf("Dial(%q) = %v, want err.Error() contains %q", te.srvAddr, err, clientAlwaysFailCredErrorMsg)
 	}
 }
 
 func TestFailFastRPCWithNoBalancerErrorOnBadCertificates(t *testing.T) {
 	te := newTest(t, env{name: "bad-cred", network: "tcp", security: "clientAlwaysFailCred", balancer: false})
-	te.startServer(&testServer{security: te.e.security})
+	te.startServer(&testServer{security: "clientAlwaysFailCred"})
 	defer te.tearDown()
 
 	cc := te.clientConn()
 	tc := testpb.NewTestServiceClient(cc)
 	if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}); !strings.Contains(err.Error(), clientAlwaysFailCredErrorMsg) {
-		te.t.Fatalf("TestService/EmptyCall(_, _) = _, %v, want err.Error() contains %q", err, clientAlwaysFailCredErrorMsg)
+		te.t.Fatalf("Dial(%q) = %v, want err.Error() contains %q", te.srvAddr, err, clientAlwaysFailCredErrorMsg)
 	}
 }
 
 func TestNonFailFastRPCWithNoBalancerErrorOnBadCertificates(t *testing.T) {
 	te := newTest(t, env{name: "bad-cred", network: "tcp", security: "clientAlwaysFailCred", balancer: false})
-	te.startServer(&testServer{security: te.e.security})
+	te.startServer(&testServer{security: "clientAlwaysFailCred"})
 	defer te.tearDown()
 
 	cc := te.clientConn()
 	tc := testpb.NewTestServiceClient(cc)
 	if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.FailFast(false)); !strings.Contains(err.Error(), clientAlwaysFailCredErrorMsg) {
-		te.t.Fatalf("TestService/EmptyCall(_, _) = _, %v, want err.Error() contains %q", err, clientAlwaysFailCredErrorMsg)
-	}
-}
-
-type clientTimeoutCreds struct {
-	timeoutReturned bool
-}
-
-func (c *clientTimeoutCreds) ClientHandshake(ctx context.Context, addr string, rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	if !c.timeoutReturned {
-		c.timeoutReturned = true
-		return nil, nil, context.DeadlineExceeded
-	}
-	return rawConn, nil, nil
-}
-func (c *clientTimeoutCreds) ServerHandshake(rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	return rawConn, nil, nil
-}
-func (c *clientTimeoutCreds) Info() credentials.ProtocolInfo {
-	return credentials.ProtocolInfo{}
-}
-
-func TestNonFailFastRPCSucceedOnTimeoutCreds(t *testing.T) {
-	te := newTest(t, env{name: "timeout-cred", network: "tcp", security: "clientTimeoutCreds", balancer: false})
-	te.userAgent = testAppUA
-	te.startServer(&testServer{security: te.e.security})
-	defer te.tearDown()
-
-	cc := te.clientConn()
-	tc := testpb.NewTestServiceClient(cc)
-	// This unary call should succeed, because ClientHandshake will succeed for the second time.
-	if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.FailFast(false)); err != nil {
-		te.t.Fatalf("TestService/EmptyCall(_, _) = _, %v, want <nil>", err)
-	}
-}
-
-type serverDispatchCred struct {
-	ready   chan struct{}
-	rawConn net.Conn
-}
-
-func newServerDispatchCred() *serverDispatchCred {
-	return &serverDispatchCred{
-		ready: make(chan struct{}),
-	}
-}
-func (c *serverDispatchCred) ClientHandshake(ctx context.Context, addr string, rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	return rawConn, nil, nil
-}
-func (c *serverDispatchCred) ServerHandshake(rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	c.rawConn = rawConn
-	close(c.ready)
-	return nil, nil, credentials.ErrConnDispatched
-}
-func (c *serverDispatchCred) Info() credentials.ProtocolInfo {
-	return credentials.ProtocolInfo{}
-}
-func (c *serverDispatchCred) getRawConn() net.Conn {
-	<-c.ready
-	return c.rawConn
-}
-
-func TestServerCredsDispatch(t *testing.T) {
-	lis, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatalf("Failed to listen: %v", err)
-	}
-	cred := newServerDispatchCred()
-	s := grpc.NewServer(grpc.Creds(cred))
-	go s.Serve(lis)
-	defer s.Stop()
-
-	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithTransportCredentials(cred))
-	if err != nil {
-		t.Fatalf("grpc.Dial(%q) = %v", lis.Addr().String(), err)
-	}
-	defer cc.Close()
-
-	// Check rawConn is not closed.
-	if n, err := cred.getRawConn().Write([]byte{0}); n <= 0 || err != nil {
-		t.Errorf("Read() = %v, %v; want n>0, <nil>", n, err)
+		te.t.Fatalf("Dial(%q) = %v, want err.Error() contains %q", te.srvAddr, err, clientAlwaysFailCredErrorMsg)
 	}
 }
 
