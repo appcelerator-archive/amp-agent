@@ -1,5 +1,5 @@
 hash: cd6b6c4f3de02546185711d526172ef1dd6c69fdef1e60316484f266fdb3713d
-updated: 2016-09-05T14:22:45.117293414+02:00
+updated: 2016-09-05T14:36:33.621227628+02:00
 imports:
 - name: github.com/appcelerator/amp
   version: 28712fd4ee96d3266110add7f93c897f903cef94

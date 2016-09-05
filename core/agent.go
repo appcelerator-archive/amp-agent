@@ -47,7 +47,6 @@ func AgentInit(version string) error {
 	runtime.GOMAXPROCS(50)
 	agent.trapSignal()
 	conf.init(version)
-	//initKafka()
 	var err error
 	sc, err = stan.Connect(clusterID, clientID, stan.NatsURL(conf.natsURL))
 	if err != nil {
@@ -61,6 +60,8 @@ func AgentInit(version string) error {
 		return err
 	}
 	agent.client = cli
+	fmt.Println("Connected to Docker: engine-api-cli-1.0")
+	time.Sleep(40 * time.Second) //NATS messages lost bug workarround
 	fmt.Println("Extracting containers list...")
 	agent.containers = make(map[string]*ContainerData)
 	ContainerListOptions := types.ContainerListOptions{All: false}
