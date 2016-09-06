@@ -8,13 +8,13 @@ import (
 
 //AgentConfig configuration parameters
 type AgentConfig struct {
-	dockerEngine           string
-	natsURL	       	       string
-	elasticsearchURL       string
-	apiPort                string
-	period                 int
-	clientID	       string
-	clusterID	       string
+	dockerEngine     string
+	kafkaHost        string
+	elasticsearchURL string
+	apiPort          string
+	period           int
+	clientID         string
+	clusterID        string
 }
 
 var conf AgentConfig
@@ -29,7 +29,7 @@ func (cfg *AgentConfig) init(version string) {
 //Set default value of configuration
 func (cfg *AgentConfig) setDefault() {
 	cfg.dockerEngine = "unix:///var/run/docker.sock"
-	cfg.natsURL = "nats://nats:4222"
+	cfg.kafkaHost = "kafka:9092"
 	cfg.elasticsearchURL = "elasticsearch:9200/amp-logs/_search"
 	cfg.apiPort = "3000"
 	cfg.period = 10
@@ -40,7 +40,7 @@ func (cfg *AgentConfig) setDefault() {
 //Update config with env variables
 func (cfg *AgentConfig) loadConfigUsingEnvVariable() {
 	cfg.dockerEngine = getStringParameter("DOCKER", cfg.dockerEngine)
-	cfg.natsURL = getStringParameter("NATS_URL", cfg.natsURL)
+	cfg.kafkaHost = getStringParameter("KAFKA_HOST", cfg.kafkaHost)
 	cfg.apiPort = getStringParameter("API_PORT", cfg.apiPort)
 	cfg.elasticsearchURL = getStringParameter("ELASTICSEARCH", cfg.elasticsearchURL)
 	cfg.period = getIntParameter("PERIOD", cfg.period)
@@ -54,7 +54,7 @@ func (cfg *AgentConfig) displayConfig(version string) {
 	fmt.Println("----------------------------------------------------------------------------")
 	fmt.Println("Configuration:")
 	fmt.Printf("Docker-engine: %s\n", conf.dockerEngine)
-	fmt.Printf("Nats URL: %s\n", conf.natsURL)
+	fmt.Printf("Kafka host: %s\n", conf.kafkaHost)
 	fmt.Printf("ClientId: %s\n", conf.clientID)
 	fmt.Printf("ClusterId: %s\n", conf.clusterID)
 	fmt.Println("----------------------------------------------------------------------------")
