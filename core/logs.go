@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/Shopify/sarama"
 	"github.com/appcelerator/amp/api/rpc/logs"
 	"github.com/docker/engine-api/types"
 	"github.com/golang/protobuf/proto"
@@ -19,7 +20,6 @@ import (
 const elasticSearchTimeIDQuery = `{"query":{"match":{"container_id":"[container_id]"}},"sort":{"time_id":{"order":"desc"}},"from":0,"size":1}`
 
 func updateLogsStream() {
-	//if kafka.kafkaReady {
 	for ID, data := range agent.containers {
 		if data.logsStream == nil || data.logsReadError {
 			lastTimeID := getLastTimeID(ID)
@@ -37,7 +37,6 @@ func updateLogsStream() {
 			}
 		}
 	}
-	//}
 }
 
 func openLogsStream(ID string, lastTimeID string) (io.ReadCloser, error) {
@@ -94,7 +93,7 @@ func startReadingLogs(ID string, data *ContainerData) {
 		serviceName := data.labels["com.docker.swarm.service.name"]
 		serviceID := data.labels["com.docker.swarm.service.id"]
 		taskName := data.labels["com.docker.swarm.task.name"]
-		taskID := data.labels["com.docker.swarm.task.id"]		
+		taskID := data.labels["com.docker.swarm.task.id"]
 		nodeID := data.labels["com.docker.swarm.node.id"]
 		reader := bufio.NewReader(stream)
 		fmt.Printf("start reading logs on container: %s\n", data.name)
@@ -107,32 +106,35 @@ func startReadingLogs(ID string, data *ContainerData) {
 				return
 			}
 			var slog string
-			if len(line) > 39 {
-				slog = strings.TrimSuffix(line[39:], "\n")
-				ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
-				if conf.natsURL != "" {
-					logEntry := logs.LogEntry{
-						ServiceName: serviceName,
-						ServiceId:   serviceID,
-						TaskName:    taskName,
-						TaskId:	     taskID,
-						NodeId:      nodeID,
-						ContainerId: ID,
-						Message:     slog,
-						Timestamp:   ntime.Format(time.RFC3339Nano),
-						TimeId:      line[8:38], //TODO:have a true timeId
-					}
-					encoded, err := proto.Marshal(&logEntry)
-					if err != nil {
-						log.Printf("error marshalling log entry: %v", err)
-					}
-					_, err = agent.natsClient.PublishAsync("amp-logs", encoded, nil)
-					if err != nil {
-						log.Printf("error sending log entry: %v", err)
-					}
-				}
-			} else {
+			if len(line) <= 39 {
 				fmt.Printf("invalid log: [%s]\n", line)
+				continue
+			}
+
+			slog = strings.TrimSuffix(line[39:], "\n")
+			ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
+
+			logEntry := logs.LogEntry{
+				ServiceName: serviceName,
+				ServiceId:   serviceID,
+				TaskName:    taskName,
+				TaskId:      taskID,
+				NodeId:      nodeID,
+				ContainerId: ID,
+				Message:     slog,
+				Timestamp:   ntime.Format(time.RFC3339Nano),
+				TimeId:      line[8:38], //TODO:have a true timeId
+			}
+
+			encoded, err := proto.Marshal(&logEntry)
+			if err != nil {
+				log.Printf("error marshalling log entry: %v", err)
+			}
+
+			select {
+			case agent.kafkaProducer.Input() <- &sarama.ProducerMessage{Topic: "amp-logs", Value: sarama.ByteEncoder(encoded)}:
+			case err := <-agent.kafkaProducer.Errors():
+				log.Println("Failed to produce message", err)
 			}
 		}
 	}()

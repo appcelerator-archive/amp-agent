@@ -2,9 +2,9 @@ package core
 
 import (
 	"fmt"
+	"github.com/Shopify/sarama"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
-	"github.com/nats-io/go-nats-streaming"
 	"golang.org/x/net/context"
 	"io"
 	"log"
@@ -22,7 +22,8 @@ type Agent struct {
 	eventsStream       io.ReadCloser
 	eventStreamReading bool
 	lastUpdate         time.Time
-	natsClient   	   stan.Conn
+	kafkaClient        Kafka
+	kafkaProducer      sarama.AsyncProducer
 }
 
 //ContainerData data
@@ -42,20 +43,24 @@ func AgentInit(version string) error {
 	runtime.GOMAXPROCS(50)
 	agent.trapSignal()
 	conf.init(version)
-	sc, err := stan.Connect(conf.clusterID, conf.clientID, stan.NatsURL(conf.natsURL))
+	err := agent.kafkaClient.Connect(conf.kafkaHost)
 	if err != nil {
 		return err
 	}
-	agent.natsClient = sc
-	log.Println("Connected to NATS-Streaming")
+	log.Println("Connected to Kafka")
+	agent.kafkaProducer, err = agent.kafkaClient.NewAsyncProducer()
+	if err != nil {
+		return err
+	}
+	log.Println("Kafka producer successfuly created")
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
 	if err != nil {
-		agent.natsClient.Close()
+		agent.kafkaClient.Close()
 		return err
 	}
 	agent.dockerClient = cli
-	fmt.Println("Connected to Docker-engine")	
+	fmt.Println("Connected to Docker-engine")
 
 	//time.Sleep(30 * time.Second) //NATS messages lost bug workarround
 	fmt.Println("Extracting containers list...")
@@ -63,7 +68,7 @@ func AgentInit(version string) error {
 	ContainerListOptions := types.ContainerListOptions{All: false}
 	containers, err := agent.dockerClient.ContainerList(context.Background(), ContainerListOptions)
 	if err != nil {
-		agent.natsClient.Close()
+		agent.kafkaClient.Close()
 		return err
 	}
 	for _, cont := range containers {
@@ -104,7 +109,7 @@ func (agt *Agent) addContainer(ID string) {
 		inspect, err := agt.dockerClient.ContainerInspect(context.Background(), ID)
 		if err == nil {
 			data := ContainerData{
-				name:	       inspect.Name,
+				name:          inspect.Name,
 				labels:        inspect.Config.Labels,
 				state:         inspect.State.Status,
 				health:        "",
@@ -160,7 +165,7 @@ func (agt *Agent) trapSignal() {
 		agt.eventsStream.Close()
 		closeLogsStreams()
 		//kafka.close()
-		agt.natsClient.Close()
+		agt.kafkaClient.Close()
 		os.Exit(1)
 	}()
 }
