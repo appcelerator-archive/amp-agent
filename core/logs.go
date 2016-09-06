@@ -50,7 +50,7 @@ func openLogsStream(ID string, lastTimeID string) (io.ReadCloser, error) {
 	if lastTimeID != "" {
 		containerLogsOptions.Since = lastTimeID
 	}
-	return agent.client.ContainerLogs(context.Background(), ID, containerLogsOptions)
+	return agent.dockerClient.ContainerLogs(context.Background(), ID, containerLogsOptions)
 }
 
 //Use elasticsearch REST API directly
@@ -126,7 +126,7 @@ func startReadingLogs(ID string, data *ContainerData) {
 					if err != nil {
 						log.Printf("error marshalling log entry: %v", err)
 					}
-					_, err = sc.PublishAsync("amp-logs", encoded, nil)
+					_, err = agent.natsClient.PublishAsync("amp-logs", encoded, nil)
 					if err != nil {
 						log.Printf("error sending log entry: %v", err)
 					}

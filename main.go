@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-const version string = "1.0.0-7"
+const version string = "1.0.0-8"
 
 func main() {
 	err := core.AgentInit(version)

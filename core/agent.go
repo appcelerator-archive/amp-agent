@@ -17,11 +17,12 @@ import (
 
 //Agent data
 type Agent struct {
-	client             *client.Client
+	dockerClient       *client.Client
 	containers         map[string]*ContainerData
 	eventsStream       io.ReadCloser
 	eventStreamReading bool
 	lastUpdate         time.Time
+	natsClient   	   stan.Conn
 }
 
 //ContainerData data
@@ -35,38 +36,34 @@ type ContainerData struct {
 }
 
 var agent Agent
-var sc stan.Conn
-
-const (
-	clientID  = "amp-agent"
-	clusterID = "test-cluster"
-)
 
 //AgentInit Connect to docker engine, get initial containers list and start the agent
 func AgentInit(version string) error {
 	runtime.GOMAXPROCS(50)
 	agent.trapSignal()
 	conf.init(version)
-	var err error
-	sc, err = stan.Connect(clusterID, clientID, stan.NatsURL(conf.natsURL))
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Printf("Connected to NATS-Streaming at %s\n", conf.natsURL)
-	fmt.Println("Connecting to docker...")
-	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
+	sc, err := stan.Connect(conf.clusterID, conf.clientID, stan.NatsURL(conf.natsURL))
 	if err != nil {
 		return err
 	}
-	agent.client = cli
-	fmt.Println("Connected to Docker: engine-api-cli-1.0")
+	agent.natsClient = sc
+	log.Println("Connected to NATS-Streaming")
+	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
+	if err != nil {
+		agent.natsClient.Close()
+		return err
+	}
+	agent.dockerClient = cli
+	fmt.Println("Connected to Docker-engine")	
+
 	//time.Sleep(30 * time.Second) //NATS messages lost bug workarround
 	fmt.Println("Extracting containers list...")
 	agent.containers = make(map[string]*ContainerData)
 	ContainerListOptions := types.ContainerListOptions{All: false}
-	containers, err := agent.client.ContainerList(context.Background(), ContainerListOptions)
+	containers, err := agent.dockerClient.ContainerList(context.Background(), ContainerListOptions)
 	if err != nil {
+		agent.natsClient.Close()
 		return err
 	}
 	for _, cont := range containers {
@@ -93,7 +90,10 @@ func (agt *Agent) updateContainerMap(action string, containerID string) {
 	if action == "start" {
 		agt.addContainer(containerID)
 	} else if action == "destroy" || action == "die" || action == "kill" || action == "stop" {
-		agt.removeContainer(containerID)
+		go func() {
+			time.Sleep(5 * time.Second)
+			agt.removeContainer(containerID)
+		}()
 	}
 }
 
@@ -101,7 +101,7 @@ func (agt *Agent) updateContainerMap(action string, containerID string) {
 func (agt *Agent) addContainer(ID string) {
 	_, ok := agt.containers[ID]
 	if !ok {
-		inspect, err := agt.client.ContainerInspect(context.Background(), ID)
+		inspect, err := agt.dockerClient.ContainerInspect(context.Background(), ID)
 		if err == nil {
 			data := ContainerData{
 				name:	       inspect.Name,
@@ -134,7 +134,7 @@ func (agt *Agent) removeContainer(ID string) {
 func (agt *Agent) updateContainer(ID string) {
 	data, ok := agt.containers[ID]
 	if ok {
-		inspect, err := agt.client.ContainerInspect(context.Background(), ID)
+		inspect, err := agt.dockerClient.ContainerInspect(context.Background(), ID)
 		if err == nil {
 			data.labels = inspect.Config.Labels
 			data.state = inspect.State.Status
@@ -160,7 +160,7 @@ func (agt *Agent) trapSignal() {
 		agt.eventsStream.Close()
 		closeLogsStreams()
 		//kafka.close()
-		sc.Close()
+		agt.natsClient.Close()
 		os.Exit(1)
 	}()
 }

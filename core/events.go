@@ -23,7 +23,7 @@ func updateEventsStream() {
 		args.Add("event", "create")
 		args.Add("event", "start")
 		eventsOptions := types.EventsOptions{Filters: args}
-		stream, err := agent.client.Events(context.Background(), eventsOptions)
+		stream, err := agent.dockerClient.Events(context.Background(), eventsOptions)
 		agent.eventsStream = stream
 		if err != nil {
 			fmt.Printf("docker event stream open error: %v\n", err)

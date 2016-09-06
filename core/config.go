@@ -13,6 +13,8 @@ type AgentConfig struct {
 	elasticsearchURL       string
 	apiPort                string
 	period                 int
+	clientID	       string
+	clusterID	       string
 }
 
 var conf AgentConfig
@@ -31,6 +33,8 @@ func (cfg *AgentConfig) setDefault() {
 	cfg.elasticsearchURL = "elasticsearch:9200/amp-logs/_search"
 	cfg.apiPort = "3000"
 	cfg.period = 10
+	cfg.clientID = "amp-agent-" + os.Getenv("HOSTNAME")
+	cfg.clusterID = "test-cluster"
 }
 
 //Update config with env variables
@@ -40,6 +44,8 @@ func (cfg *AgentConfig) loadConfigUsingEnvVariable() {
 	cfg.apiPort = getStringParameter("API_PORT", cfg.apiPort)
 	cfg.elasticsearchURL = getStringParameter("ELASTICSEARCH", cfg.elasticsearchURL)
 	cfg.period = getIntParameter("PERIOD", cfg.period)
+	cfg.clientID = getStringParameter("CLIENTID", cfg.clientID)
+	cfg.clusterID = getStringParameter("CLIENTID", cfg.clusterID)
 }
 
 //display amp-pilot configuration
@@ -49,6 +55,8 @@ func (cfg *AgentConfig) displayConfig(version string) {
 	fmt.Println("Configuration:")
 	fmt.Printf("Docker-engine: %s\n", conf.dockerEngine)
 	fmt.Printf("Nats URL: %s\n", conf.natsURL)
+	fmt.Printf("ClientId: %s\n", conf.clientID)
+	fmt.Printf("ClusterId: %s\n", conf.clusterID)
 	fmt.Println("----------------------------------------------------------------------------")
 }
 
