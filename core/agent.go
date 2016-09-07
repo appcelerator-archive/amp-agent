@@ -77,6 +77,7 @@ WaitForTopic:
 		return errors.New("Kafka topic not available.")
 
 	}
+	time.Sleep(5 * time.Second)
 
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
@@ -90,7 +91,7 @@ WaitForTopic:
 
 	fmt.Println("Extracting containers list...")
 	agent.containers = make(map[string]*ContainerData)
-	ContainerListOptions := types.ContainerListOptions{All: false}
+	ContainerListOptions := types.ContainerListOptions{All: true}
 	containers, err := agent.dockerClient.ContainerList(context.Background(), ContainerListOptions)
 	if err != nil {
 		agent.kafkaClient.Close()

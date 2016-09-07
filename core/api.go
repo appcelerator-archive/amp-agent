@@ -32,6 +32,7 @@ func agentHealth(resp http.ResponseWriter, req *http.Request) {
 	if agent.eventStreamReading {
 		resp.WriteHeader(200)
 	} else {
+		fmt.Println("execute /health: return not healthy")
 		resp.WriteHeader(400)
 	}
 }

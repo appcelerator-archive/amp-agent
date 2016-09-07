@@ -104,6 +104,7 @@ func startReadingLogs(ID string, data *ContainerData) {
 				fmt.Printf("stop reading log on container %s: %v\n", data.name, err)
 				data.logsReadError = true
 				stream.Close()
+				agent.removeContainer(ID)
 				return
 			}
 			var slog string
