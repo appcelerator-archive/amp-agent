@@ -15,7 +15,7 @@ var (
 )
 
 func main() {
-	err := core.AgentInit(Version)
+	err := core.AgentInit(Version,  Build)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -18,10 +18,10 @@ type AgentConfig struct {
 var conf AgentConfig
 
 //update conf instance with default value and environment variables
-func (cfg *AgentConfig) init(version string) {
+func (cfg *AgentConfig) init(version string, build string) {
 	cfg.setDefault()
 	cfg.loadConfigUsingEnvVariable()
-	cfg.displayConfig(version)
+	cfg.displayConfig(version, build)
 }
 
 //Set default value of configuration
@@ -43,8 +43,8 @@ func (cfg *AgentConfig) loadConfigUsingEnvVariable() {
 }
 
 //display amp-pilot configuration
-func (cfg *AgentConfig) displayConfig(version string) {
-	fmt.Printf("amp-agent version: %v\n", version)
+func (cfg *AgentConfig) displayConfig(version string, build string) {
+	fmt.Printf("amp-agent version: %v build: %s\n", version, build)
 	fmt.Println("----------------------------------------------------------------------------")
 	fmt.Println("Configuration:")
 	fmt.Printf("Docker-engine: %s\n", conf.dockerEngine)

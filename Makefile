@@ -1,9 +1,11 @@
 
+.PHONY: all clean install fmt check version build run test
+
 SHELL := /bin/bash
 BASEDIR := $(shell echo $${PWD})
 
 # build variables (provided to binaries by linker LDFLAGS below)
-VERSION := 1.0.0-9
+VERSION := 1.1.0-9
 BUILD := $(shell git rev-parse HEAD | cut -c1-8)
 
 LDFLAGS=-ldflags "-X=main.Version=$(VERSION) -X=main.Build=$(BUILD)"
@@ -27,7 +29,7 @@ OWNER := appcelerator
 REPO := github.com/$(OWNER)/amp-agent
 
 TAG := latest
-IMAGE := $(OWNER)/amp-agent:$(TAG)
+IMAGE := $(OWNER)/amp:$(TAG)
 
 all: version check install
 
@@ -36,12 +38,13 @@ version:
 
 clean:
 	@rm -rf $(GENERATED)
-	@rm -f $GOPATH/bin/amp-agent
+	@rm -f $$(which amp-agent)
 
-test:
-	@go test -v $(REPO)/testapp
+install:
+	@go install $(LDFLAGS) $(REPO)
 
-install: 
+# used to build under Docker
+install-host:
 	@go install $(LDFLAGS) $(REPO)
 
 proto: $(PROTOFILES)
@@ -60,4 +63,13 @@ build:
 	@docker build -t $(IMAGE) .
 
 run: build
-	@CID=$(shell docker run --net=host -d --name $(SERVER) $(IMAGE)) && echo $${CID}
+	@CID=$(shell docker run --net=host -d --name amp-agent $(IMAGE)) && echo $${CID}
+
+install-deps:
+	@glide install --strip-vcs --strip-vendor --update-vendored
+
+update-deps:
+	@glide update --strip-vcs --strip-vendor --update-vendored
+
+test:
+	@go test -v $(REPO)
