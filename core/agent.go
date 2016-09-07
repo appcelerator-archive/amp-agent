@@ -7,12 +7,12 @@ import (
 	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 	"io"
-	"log"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
+	"errors"
 )
 
 //Agent data
@@ -47,12 +47,12 @@ func AgentInit(version string, build string) error {
 	if err != nil {
 		return err
 	}
-	log.Println("Connected to Kafka")
+	fmt.Println("Connected to Kafka")
 	agent.kafkaProducer, err = agent.kafkaClient.NewAsyncProducer()
 	if err != nil {
 		return err
 	}
-	log.Println("Kafka producer successfuly created")
+	fmt.Println("Kafka producer successfuly created")
 
 	topicFound := false
 
@@ -64,7 +64,7 @@ WaitForTopic:
 		}
 		for _, topic := range topics {
 			if topic == kafkaLogsTopic {
-				log.Println("Kafka logs topic available: ", kafkaLogsTopic)
+				fmt.Println("Kafka logs topic available: ", kafkaLogsTopic)
 				topicFound = true
 				break WaitForTopic
 			}
@@ -74,7 +74,8 @@ WaitForTopic:
 	}
 
 	if !topicFound {
-		log.Fatalln("Kafka topic not available.")
+		return errors.New("Kafka topic not available.")
+
 	}
 
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
