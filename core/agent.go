@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/docker/engine-api/client"
