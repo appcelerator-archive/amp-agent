@@ -5,10 +5,17 @@ import (
 	"log"
 )
 
-const version string = "1.0.0-8"
+// build vars
+var (
+        // Version is set with a linker flag (see Makefile)
+        Version string
+
+        // Build is set with a linker flag (see Makefile)
+        Build string
+)
 
 func main() {
-	err := core.AgentInit(version)
+	err := core.AgentInit(Version)
 	if err != nil {
 		log.Fatal(err)
 	}
