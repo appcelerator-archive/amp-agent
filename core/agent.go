@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/docker/engine-api/client"
@@ -53,7 +54,30 @@ func AgentInit(version string, build string) error {
 		return err
 	}
 	log.Println("Kafka producer successfuly created")
-	time.Sleep(20 * time.Second)
+
+	topicFound := false
+
+WaitForTopic:
+	for i := 0; i < 60; i++ {
+		topics, err := agent.kafkaClient.Topics()
+		if err != nil {
+			return err
+		}
+		for _, topic := range topics {
+			if topic == kafkaLogsTopic {
+				log.Println("Kafka logs topic available: ", kafkaLogsTopic)
+				topicFound = true
+				break WaitForTopic
+			}
+
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	if !topicFound {
+		log.Fatalln("Kafka topic not available.")
+	}
+
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
 	if err != nil {
@@ -64,7 +88,6 @@ func AgentInit(version string, build string) error {
 
 	fmt.Println("Connected to Docker-engine")
 
-	//time.Sleep(30 * time.Second) //NATS messages lost bug workarround
 	fmt.Println("Extracting containers list...")
 	agent.containers = make(map[string]*ContainerData)
 	ContainerListOptions := types.ContainerListOptions{All: false}

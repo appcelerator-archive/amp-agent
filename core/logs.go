@@ -11,8 +11,8 @@ import (
 	"golang.org/x/net/context"
 	"io"
 	"io/ioutil"
-	"os"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -133,12 +133,12 @@ func startReadingLogs(ID string, data *ContainerData) {
 			}
 
 			select {
-			case agent.kafkaProducer.Input() <- &sarama.ProducerMessage{Topic: "amp-logs", Value: sarama.ByteEncoder(encoded)}:
-				nbErr=0
+			case agent.kafkaProducer.Input() <- &sarama.ProducerMessage{Topic: kafkaLogsTopic, Value: sarama.ByteEncoder(encoded)}:
+				nbErr = 0
 			case err := <-agent.kafkaProducer.Errors():
 				fmt.Println("Failed to produce message", err)
-				nbErr++;
-				if nbErr >20 {
+				nbErr++
+				if nbErr > 20 {
 					fmt.Println("Kafka not ready anymore: exit")
 					agent.eventsStream.Close()
 					closeLogsStreams()
