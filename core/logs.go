@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/context"
 	"io"
 	"io/ioutil"
-	"log"
+	"os"
 	"net/http"
 	"strings"
 	"time"
@@ -97,6 +97,7 @@ func startReadingLogs(ID string, data *ContainerData) {
 		nodeID := data.labels["com.docker.swarm.node.id"]
 		reader := bufio.NewReader(stream)
 		fmt.Printf("start reading logs on container: %s\n", data.name)
+		nbErr := 0
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
@@ -128,13 +129,22 @@ func startReadingLogs(ID string, data *ContainerData) {
 
 			encoded, err := proto.Marshal(&logEntry)
 			if err != nil {
-				log.Printf("error marshalling log entry: %v", err)
+				fmt.Printf("error marshalling log entry: %v", err)
 			}
 
 			select {
 			case agent.kafkaProducer.Input() <- &sarama.ProducerMessage{Topic: "amp-logs", Value: sarama.ByteEncoder(encoded)}:
+				nbErr=0
 			case err := <-agent.kafkaProducer.Errors():
-				log.Println("Failed to produce message", err)
+				fmt.Println("Failed to produce message", err)
+				nbErr++;
+				if nbErr >20 {
+					fmt.Println("Kafka not ready anymore: exit")
+					agent.eventsStream.Close()
+					closeLogsStreams()
+					agent.kafkaClient.Close()
+					os.Exit(1)
+				}
 			}
 		}
 	}()

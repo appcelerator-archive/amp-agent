@@ -53,6 +53,7 @@ func AgentInit(version string, build string) error {
 		return err
 	}
 	log.Println("Kafka producer successfuly created")
+	time.Sleep(20 * time.Second)
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
 	if err != nil {
@@ -60,6 +61,7 @@ func AgentInit(version string, build string) error {
 		return err
 	}
 	agent.dockerClient = cli
+
 	fmt.Println("Connected to Docker-engine")
 
 	//time.Sleep(30 * time.Second) //NATS messages lost bug workarround
