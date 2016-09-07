@@ -4,6 +4,10 @@ import (
 	"github.com/Shopify/sarama"
 )
 
+const (
+	kafkaLogsTopic = "amp-logs"
+)
+
 var (
 	kafkaClient sarama.Client
 )
@@ -30,6 +34,12 @@ func (kafka *Kafka) NewConsumer() (sarama.Consumer, error) {
 // NewAsyncProducer create a new async producer
 func (kafka *Kafka) NewAsyncProducer() (sarama.AsyncProducer, error) {
 	return sarama.NewAsyncProducerFromClient(kafkaClient)
+}
+
+// Topics return available topics
+func (kafka *Kafka) Topics() ([]string, error) {
+	kafkaClient.RefreshMetadata()
+	return kafkaClient.Topics()
 }
 
 // Close close the connection to Kafka
