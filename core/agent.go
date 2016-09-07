@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/docker/engine-api/client"
@@ -12,7 +13,6 @@ import (
 	"runtime"
 	"syscall"
 	"time"
-	"errors"
 )
 
 //Agent data
@@ -48,36 +48,18 @@ func AgentInit(version string, build string) error {
 		return err
 	}
 	fmt.Println("Connected to Kafka")
+
+	agent.kafkaClient.WaitForTopic(kafkaLogsTopic, 60 /* seconds */)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Kafka topic available", kafkaLogsTopic)
+
 	agent.kafkaProducer, err = agent.kafkaClient.NewAsyncProducer()
 	if err != nil {
 		return err
 	}
 	fmt.Println("Kafka producer successfuly created")
-
-	topicFound := false
-
-WaitForTopic:
-	for i := 0; i < 60; i++ {
-		topics, err := agent.kafkaClient.Topics()
-		if err != nil {
-			return err
-		}
-		for _, topic := range topics {
-			if topic == kafkaLogsTopic {
-				fmt.Println("Kafka logs topic available: ", kafkaLogsTopic)
-				topicFound = true
-				break WaitForTopic
-			}
-
-		}
-		time.Sleep(1 * time.Second)
-	}
-
-	if !topicFound {
-		return errors.New("Kafka topic not available.")
-
-	}
-	time.Sleep(5 * time.Second)
 
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)

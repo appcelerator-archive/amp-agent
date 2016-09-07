@@ -1,7 +1,9 @@
 package core
 
 import (
+	"errors"
 	"github.com/Shopify/sarama"
+	"time"
 )
 
 const (
@@ -40,6 +42,30 @@ func (kafka *Kafka) NewAsyncProducer() (sarama.AsyncProducer, error) {
 func (kafka *Kafka) Topics() ([]string, error) {
 	kafkaClient.RefreshMetadata()
 	return kafkaClient.Topics()
+}
+
+// WaitForTopic wait for given topic availability
+func (kafka *Kafka) WaitForTopic(topic string, timeout int) error {
+	topicFound := false
+WaitForTopic:
+	for i := 0; i < timeout; i++ {
+		topics, err := kafka.Topics()
+		if err != nil {
+			return err
+		}
+		for _, topic := range topics {
+			if topic == topic {
+				topicFound = true
+				break WaitForTopic
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	if !topicFound {
+		return errors.New("Kafka topic not available.")
+	}
+	return nil
 }
 
 // Close close the connection to Kafka
