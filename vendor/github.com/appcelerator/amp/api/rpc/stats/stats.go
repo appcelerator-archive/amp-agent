@@ -16,32 +16,43 @@ type Stats struct {
 	Influx influx.Influx
 }
 
+const (
+	discriminatorContainer = "container"
+	discriminatorService   = "service"
+	discriminatorNode      = "node"
+	discriminatorTask      = "task"
+	metricsCPU             = "cpu"
+	metricsMem             = "mem"
+	metricsNet             = "net"
+	metricsIO              = "io"
+)
+
 // StatsQuery extracts stat information according to StatsRequest
 func (s *Stats) StatsQuery(ctx context.Context, req *StatsRequest) (*StatsReply, error) {
 	var metricList [4]*StatsReply
 	if req.StatsCpu {
-		ret, err := s.statQueryMetric(req, "cpu")
+		ret, err := s.statQueryMetric(req, metricsCPU)
 		if err != nil {
 			return nil, err
 		}
 		s.addStatsResult(&metricList, ret)
 	}
 	if req.StatsMem {
-		ret, err := s.statQueryMetric(req, "mem")
+		ret, err := s.statQueryMetric(req, metricsMem)
 		if err != nil {
 			return nil, err
 		}
 		s.addStatsResult(&metricList, ret)
 	}
 	if req.StatsIo {
-		ret, err := s.statQueryMetric(req, "io")
+		ret, err := s.statQueryMetric(req, metricsIO)
 		if err != nil {
 			return nil, err
 		}
 		s.addStatsResult(&metricList, ret)
 	}
 	if req.StatsNet {
-		ret, err := s.statQueryMetric(req, "net")
+		ret, err := s.statQueryMetric(req, metricsNet)
 		if err != nil {
 			return nil, err
 		}
@@ -90,29 +101,29 @@ func (s *Stats) combineStats(req *StatsRequest, list *[4]*StatsReply) *StatsRepl
 
 /*
 func debugList(mes string, list *[4]*StatsReply) {
-	fmt.Println(mes)
-	for i := 0 ; i < 4 ; i++ {
-		if list[i]==nil {
-			fmt.Printf("%d nil\n", i)
-		} else {
-			fmt.Printf("%d %d\n", i, len(list[i].Entries))
-		}
-	}
+  fmt.Println(mes)
+  for i := 0 ; i < 4 ; i++ {
+    if list[i]==nil {
+      fmt.Printf("%d nil\n", i)
+    } else {
+      fmt.Printf("%d %d\n", i, len(list[i].Entries))
+    }
+  }
 }
 */
 
 func (s *Stats) isRowsMatch(req *StatsRequest, r1 *StatsEntry, r2 *StatsEntry) bool {
-	if req.Discriminator == "container" {
+	if req.Discriminator == discriminatorContainer {
 		if r1.ContainerId == r2.ContainerId {
 			return true
 		}
 		return false
-	} else if req.Discriminator == "service" {
+	} else if req.Discriminator == discriminatorService {
 		if r1.ServiceId == r2.ServiceId {
 			return true
 		}
 		return false
-	} else if req.Discriminator == "task" {
+	} else if req.Discriminator == discriminatorTask {
 		if r1.TaskId == r2.TaskId {
 			return true
 		}
@@ -125,16 +136,16 @@ func (s *Stats) isRowsMatch(req *StatsRequest, r1 *StatsEntry, r2 *StatsEntry) b
 }
 
 func (s *Stats) updateRow(ref *StatsEntry, row *StatsEntry) {
-	if row.Type == "cpu" {
+	if row.Type == metricsCPU {
 		ref.Cpu = row.Cpu
-	} else if row.Type == "mem" {
+	} else if row.Type == metricsMem {
 		ref.Mem = row.Mem
 		ref.MemUsage = row.MemUsage
 		ref.MemLimit = row.MemLimit
-	} else if row.Type == "io" {
+	} else if row.Type == metricsIO {
 		ref.IoRead = row.IoRead
 		ref.IoWrite = row.IoWrite
-	} else if row.Type == "net" {
+	} else if row.Type == metricsNet {
 		ref.NetTxBytes = row.NetTxBytes
 		ref.NetRxBytes = row.NetRxBytes
 	}
@@ -153,13 +164,12 @@ func (s *Stats) statQueryMetric(req *StatsRequest, metric string) (*StatsReply, 
 		return nil, errors.New("No result found")
 	}
 
-	cpuReply := StatsReply{}
 	if len(res.Results[0].Series) == 0 {
 		return nil, errors.New("No result found")
 	}
 	list := res.Results[0].Series[0].Values
-	cpuReply.Entries = make([]*StatsEntry, len(list))
-	for i, row := range list {
+	containerMap := make(map[string]*StatsEntry)
+	for _, row := range list {
 		entry := StatsEntry{
 			Time:           s.getTimeFieldValue(row[0]),
 			Datacenter:     s.getStringFieldValue(row[1]),
@@ -175,47 +185,74 @@ func (s *Stats) statQueryMetric(req *StatsRequest, metric string) (*StatsReply, 
 			SortType:       req.Discriminator,
 		}
 		entry.Type = metric
-		if metric == "cpu" {
+		if metric == metricsCPU {
 			entry.Cpu = s.getNumberFieldValue(row[11])
-		} else if metric == "mem" {
+		} else if metric == metricsMem {
 			entry.Mem = s.getNumberFieldValue(row[11])
 			entry.MemUsage = s.getNumberFieldValue(row[12])
 			entry.MemLimit = s.getNumberFieldValue(row[13])
-		} else if metric == "io" {
+		} else if metric == metricsIO {
 			entry.IoRead = s.getNumberFieldValue(row[11])
 			entry.IoWrite = s.getNumberFieldValue(row[12])
-		} else if metric == "net" {
+		} else if metric == metricsNet {
 			entry.NetTxBytes = s.getNumberFieldValue(row[11])
 			entry.NetRxBytes = s.getNumberFieldValue(row[12])
 		}
-
-		cpuReply.Entries[i] = &entry
+		s.avgInContainerMap(containerMap, &entry)
 	}
-	return s.computeData(req, &cpuReply)
+	return s.addByKeyUsingContainerData(req, containerMap)
 }
 
-func (s *Stats) computeData(req *StatsRequest, data *StatsReply) (*StatsReply, error) {
+func (s *Stats) avgInContainerMap(containerMap map[string]*StatsEntry, row *StatsEntry) {
+	key := row.ContainerId
+	aggr, ok := containerMap[key]
+	if !ok {
+		containerMap[key] = row
+		if row.Cpu != 0 || row.Mem != 0 || row.IoRead != 0 || row.IoWrite != 0 || row.NetTxBytes != 0 || row.NetRxBytes != 0 {
+			row.Number = 1
+		}
+	} else {
+		aggr.Cpu += row.Cpu
+		aggr.Mem += row.Mem
+		aggr.MemUsage += row.MemUsage
+		aggr.MemLimit += row.MemLimit
+		aggr.IoRead += row.IoRead
+		aggr.IoWrite += row.IoWrite
+		aggr.NetTxBytes += row.NetTxBytes
+		aggr.NetRxBytes += row.NetRxBytes
+		if row.Cpu != 0 || row.Mem != 0 {
+			aggr.Number++
+		}
+	}
+}
+
+func (s *Stats) addByKeyUsingContainerData(req *StatsRequest, containerMap map[string]*StatsEntry) (*StatsReply, error) {
 	// aggreggate rows in map per id concidering req (containner_id | service_id | task_id | nodeId)
 	resultMap := make(map[string]*StatsEntry)
-	for _, row := range data.Entries {
-		key := s.getKey(req, row)
-		aggr, ok := resultMap[key]
-		if !ok {
-			resultMap[key] = row
-			if row.Cpu != 0 || row.Mem != 0 || row.IoRead != 0 || row.IoWrite != 0 || row.NetTxBytes != 0 || row.NetRxBytes != 0 {
-				row.Number = 1
-			}
-		} else {
-			aggr.Cpu += row.Cpu
-			aggr.Mem += row.Mem
-			aggr.MemUsage += row.MemUsage
-			aggr.MemLimit += row.MemLimit
-			aggr.IoRead += row.IoRead
-			aggr.IoWrite += row.IoWrite
-			aggr.NetTxBytes += row.NetTxBytes
-			aggr.NetRxBytes += row.NetRxBytes
-			if row.Cpu != 0 || row.Mem != 0 {
-				aggr.Number++
+	for _, row := range containerMap {
+		if row.Number > 0 {
+			key := s.getKey(req, row)
+			aggr, ok := resultMap[key]
+			if !ok {
+				aggr = row
+				aggr.Cpu = (row.Cpu / row.Number)
+				aggr.Mem = (row.Mem / row.Number)
+				aggr.MemUsage = (row.MemUsage / row.Number)
+				aggr.MemLimit = (row.MemLimit / row.Number)
+				aggr.IoRead = (row.IoRead / row.Number)
+				aggr.IoWrite = (row.IoWrite / row.Number)
+				aggr.NetTxBytes = (row.NetTxBytes / row.Number)
+				aggr.NetRxBytes = (row.NetRxBytes / row.Number)
+				resultMap[key] = aggr
+			} else {
+				aggr.Cpu += (row.Cpu / row.Number)
+				aggr.Mem += (row.Mem / row.Number)
+				aggr.MemUsage += (row.MemUsage / row.Number)
+				aggr.MemLimit += (row.MemLimit / row.Number)
+				aggr.IoRead += (row.IoRead / row.Number)
+				aggr.IoWrite += (row.IoWrite / row.Number)
+				aggr.NetTxBytes += (row.NetTxBytes / row.Number)
+				aggr.NetRxBytes += (row.NetRxBytes / row.Number)
 			}
 		}
 	}
@@ -223,22 +260,22 @@ func (s *Stats) computeData(req *StatsRequest, data *StatsReply) (*StatsReply, e
 	result := StatsReply{}
 	result.Entries = make([]*StatsEntry, len(resultMap))
 	var ii int32
-	for key := range resultMap {
-		result.Entries[ii] = resultMap[key]
-		ii++
+	for key, row := range resultMap {
+		if key != "" {
+			result.Entries[ii] = row
+			ii++
+		}
 	}
-	// copmute cpu usage value for each row
-	s.computeMetric(&result)
 	return &result, nil
 }
 
 func (s *Stats) getKey(req *StatsRequest, row *StatsEntry) string {
 	if !s.isHistoricQuery(req) {
-		if req.Discriminator == "container" {
+		if req.Discriminator == discriminatorContainer {
 			return row.ContainerId
-		} else if req.Discriminator == "service" {
+		} else if req.Discriminator == discriminatorService {
 			return row.ServiceId
-		} else if req.Discriminator == "task" {
+		} else if req.Discriminator == discriminatorTask {
 			return row.TaskId
 		}
 		return row.NodeId
@@ -257,31 +294,6 @@ func (s *Stats) getKey(req *StatsRequest, row *StatsEntry) string {
 		return fmt.Sprintf("%d", row.Time/(3600*24*7))
 	}
 	return fmt.Sprintf("%d", row.Time)
-}
-
-func (s *Stats) computeMetric(cpuReply *StatsReply) {
-	for _, row := range cpuReply.Entries {
-		if row.Cpu != 0 {
-			row.Cpu = row.Cpu / row.Number
-		}
-		if row.Mem != 0 {
-			row.Mem = row.Mem / row.Number
-			row.MemUsage = row.MemUsage / row.Number
-			row.MemLimit = row.MemLimit / row.Number
-		}
-		if row.IoRead != 0 {
-			row.IoRead = row.IoRead / row.Number
-		}
-		if row.IoWrite != 0 {
-			row.IoWrite = row.IoWrite / row.Number
-		}
-		if row.NetTxBytes != 0 {
-			row.NetTxBytes = row.NetTxBytes / row.Number
-		}
-		if row.NetRxBytes != 0 {
-			row.NetRxBytes = row.NetRxBytes / row.Number
-		}
-	}
 }
 
 func (s *Stats) getStringFieldValue(field interface{}) string {
@@ -323,23 +335,23 @@ func (s *Stats) isHistoricQuery(req *StatsRequest) bool {
 // Return specific field name for influx query concidering StatsRequest discriminator
 func getMetricFieldsName(req *StatsRequest, metric string) (string, string) {
 	var idFieldName = "\"com.docker.swarm.node.id\""
-	if req.Discriminator == "container" {
+	if req.Discriminator == discriminatorContainer {
 		idFieldName = "container_id"
-	} else if req.Discriminator == "service" {
+	} else if req.Discriminator == discriminatorService {
 		idFieldName = "\"com.docker.swarm.service.id\""
-	} else if req.Discriminator == "task" {
+	} else if req.Discriminator == discriminatorTask {
 		idFieldName = "\"com.docker.swarm.task.id\""
 	} else {
-		req.Discriminator = "node"
+		req.Discriminator = discriminatorNode
 	}
 	var fields string
-	if metric == "cpu" {
+	if metric == metricsCPU {
 		fields = "usage_percent"
-	} else if metric == "mem" {
+	} else if metric == metricsMem {
 		fields = "usage_percent, usage, max_usage"
-	} else if metric == "io" {
+	} else if metric == metricsIO {
 		fields = "io_serviced_recursive_read, io_serviced_recursive_write"
-	} else if metric == "net" {
+	} else if metric == metricsNet {
 		fields = "rx_bytes, tx_bytes"
 	}
 	return idFieldName, fields
@@ -406,11 +418,11 @@ func (s *Stats) buildWhereStatsement(req *StatsRequest) string {
 }
 
 func getSortKeyValue(row *StatsEntry) string {
-	if row.SortType == "container" {
+	if row.SortType == discriminatorContainer {
 		return row.ContainerId
-	} else if row.SortType == "service" {
+	} else if row.SortType == discriminatorService {
 		return row.ServiceId
-	} else if row.SortType == "task" {
+	} else if row.SortType == discriminatorTask {
 		return row.TaskId
 	}
 	return row.NodeId

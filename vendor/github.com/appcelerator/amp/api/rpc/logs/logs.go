@@ -4,26 +4,25 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/Shopify/sarama"
 	"github.com/appcelerator/amp/data/elasticsearch"
+	"github.com/appcelerator/amp/data/kafka"
 	"github.com/appcelerator/amp/data/storage"
 	"github.com/golang/protobuf/proto"
-	"github.com/nats-io/go-nats-streaming"
 	"golang.org/x/net/context"
 	"gopkg.in/olivere/elastic.v3"
-	"log"
 )
 
 const (
-	esIndex = "amp-logs"
-	// NatsLogTopic is the topic used for logs
-	NatsLogTopic = "amp-logs"
+	esIndex       = "amp-logs"
+	kafkaLogTopic = "amp-logs"
 )
 
 // Logs is used to implement log.LogServer
 type Logs struct {
 	Es    elasticsearch.Elasticsearch
 	Store storage.Interface
-	Nats  stan.Conn
+	Kafka kafka.Kafka
 }
 
 // Get implements log.LogServer
@@ -35,6 +34,7 @@ func (logs *Logs) Get(ctx context.Context, in *GetRequest) (*GetReply, error) {
 	//}
 	// Prepare request to elasticsearch
 	request := logs.Es.GetClient().Search().Index(esIndex)
+	request.Sort("time_id", false)
 	if in.From >= 0 {
 		request.From(int(in.From))
 	}
@@ -50,13 +50,16 @@ func (logs *Logs) Get(ctx context.Context, in *GetRequest) (*GetReply, error) {
 		request.Query(elastic.NewTermQuery("service_name", in.ServiceName))
 	}
 	if in.ContainerId != "" {
-		request.Query(elastic.NewTermQuery("container_id", in.ContainerId))
+		request.Query(elastic.NewPrefixQuery("container_id", in.ContainerId))
 	}
 	if in.NodeId != "" {
 		request.Query(elastic.NewTermQuery("node_id", in.NodeId))
 	}
 	if in.Message != "" {
-		request.Query(elastic.NewTermQuery("message", in.Message))
+		queryString := elastic.NewQueryStringQuery("*" + in.Message)
+		queryString.DefaultField("message")
+		queryString.AnalyzeWildcard(true)
+		request.Query(queryString)
 	}
 	// TODO timestamp queries
 
@@ -70,47 +73,57 @@ func (logs *Logs) Get(ctx context.Context, in *GetRequest) (*GetReply, error) {
 	reply := GetReply{}
 	reply.Entries = make([]*LogEntry, len(searchResult.Hits.Hits))
 	for i, hit := range searchResult.Hits.Hits {
-		entry, err := parseLogEntry(*hit.Source)
+		entry, err := parseJSONLogEntry(*hit.Source)
 		if err != nil {
 			return nil, err
 		}
 		reply.Entries[i] = &entry
 	}
+
+	// Reverse entries
+	for i, j := 0, len(reply.Entries)-1; i < j; i, j = i+1, j-1 {
+		reply.Entries[i], reply.Entries[j] = reply.Entries[j], reply.Entries[i]
+	}
+
 	return &reply, nil
 }
 
 // GetStream implements log.LogServer
 func (logs *Logs) GetStream(in *GetRequest, stream Logs_GetStreamServer) error {
-	sub, err := logs.Nats.Subscribe(NatsLogTopic, func(msg *stan.Msg) {
-		logEntry := LogEntry{}
-		err := proto.Unmarshal(msg.Data, &logEntry)
-		if err != nil {
-			log.Printf("error unmarshalling log entry: %v", err)
-		}
-		if filter(&logEntry, in) {
-			stream.Send(&logEntry)
-		}
-	})
+	consumer, err := logs.Kafka.NewConsumer()
 	if err != nil {
-		sub.Unsubscribe()
 		return err
 	}
+	partitionConsumer, err := consumer.ConsumePartition(kafkaLogTopic, 0, sarama.OffsetNewest)
+	if err != nil {
+		return err
+	}
+
 	for {
 		select {
+		case msg := <-partitionConsumer.Messages():
+			entry, err := parseProtoLogEntry(msg.Value)
+			if err != nil {
+				return err
+			}
+			if filter(&entry, in) {
+				stream.Send(&entry)
+			}
+
 		case <-stream.Context().Done():
-			sub.Unsubscribe()
 			return stream.Context().Err()
 		}
 	}
 }
 
-func parseLogEntry(data []byte) (LogEntry, error) {
-	var entry LogEntry
-	err := json.Unmarshal(data, &entry)
-	if err != nil {
-		return entry, err
-	}
-	return entry, err
+func parseJSONLogEntry(data []byte) (logEntry LogEntry, err error) {
+	err = json.Unmarshal(data, &logEntry)
+	return
+}
+
+func parseProtoLogEntry(data []byte) (logEntry LogEntry, err error) {
+	err = proto.Unmarshal(data, &logEntry)
+	return
 }
 
 func filter(entry *LogEntry, in *GetRequest) bool {

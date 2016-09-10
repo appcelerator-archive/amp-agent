@@ -2,16 +2,17 @@ package core
 
 import (
 	"fmt"
-	"github.com/Shopify/sarama"
-	"github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
-	"golang.org/x/net/context"
 	"io"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/Shopify/sarama"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+	"golang.org/x/net/context"
 )
 
 //Agent data

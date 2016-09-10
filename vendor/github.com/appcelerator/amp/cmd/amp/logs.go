@@ -25,14 +25,14 @@ var logsCmd = &cobra.Command{
 
 func init() {
 	// TODO logsCmd.Flags().String("timestamp", "", "filter by the given timestamp")
-	logsCmd.Flags().String("service_id", "", "Filter by the given service id")
-	logsCmd.Flags().String("service_name", "", "Filter by the given service name")
+	logsCmd.Flags().String("service-id", "", "Filter by the given service id")
+	logsCmd.Flags().String("service-name", "", "Filter by the given service name")
 	logsCmd.Flags().String("message", "", "Filter the message content by the given pattern")
-	logsCmd.Flags().String("container_id", "", "Filter by the given container id")
-	logsCmd.Flags().String("node_id", "", "Filter by the given node id")
+	logsCmd.Flags().String("container", "", "Filter by the given container id")
+	logsCmd.Flags().String("node", "", "Filter by the given node id")
 	logsCmd.Flags().String("from", "-1", "Fetch from the given index")
 	logsCmd.Flags().StringP("number", "n", "100", "Number of results")
-	logsCmd.Flags().BoolP("short", "s", false, "Display message content only")
+	logsCmd.Flags().BoolP("meta", "m", false, "Display entry metadata")
 	logsCmd.Flags().BoolP("follow", "f", false, "Follow log output")
 
 	RootCmd.AddCommand(logsCmd)
@@ -46,31 +46,31 @@ func Logs(amp *client.AMP, cmd *cobra.Command, args []string) error {
 	}
 	if amp.Verbose() {
 		fmt.Println("Logs")
-		fmt.Printf("service_id: %v\n", cmd.Flag("service_id").Value)
-		fmt.Printf("service_name: %v\n", cmd.Flag("service_name").Value)
+		fmt.Printf("service-id: %v\n", cmd.Flag("service_id").Value)
+		fmt.Printf("service-name: %v\n", cmd.Flag("service_name").Value)
 		fmt.Printf("message: %v\n", cmd.Flag("message").Value)
-		fmt.Printf("container_id: %v\n", cmd.Flag("container_id").Value)
-		fmt.Printf("node_id: %v\n", cmd.Flag("node_id").Value)
+		fmt.Printf("container: %v\n", cmd.Flag("container_id").Value)
+		fmt.Printf("node: %v\n", cmd.Flag("node_id").Value)
 		fmt.Printf("from: %v\n", cmd.Flag("from").Value)
 		fmt.Printf("n: %v\n", cmd.Flag("n").Value)
-		fmt.Printf("short: %v\n", cmd.Flag("short").Value)
+		fmt.Printf("meta: %v\n", cmd.Flag("meta").Value)
 	}
 
 	request := logs.GetRequest{}
-	request.ServiceId = cmd.Flag("service_id").Value.String()
-	request.ServiceName = cmd.Flag("service_name").Value.String()
+	request.ServiceId = cmd.Flag("service-id").Value.String()
+	request.ServiceName = cmd.Flag("service-name").Value.String()
 	request.Message = cmd.Flag("message").Value.String()
-	request.ContainerId = cmd.Flag("container_id").Value.String()
-	request.NodeId = cmd.Flag("node_id").Value.String()
+	request.ContainerId = cmd.Flag("container").Value.String()
+	request.NodeId = cmd.Flag("node").Value.String()
 	if request.From, err = strconv.ParseInt(cmd.Flag("from").Value.String(), 10, 64); err != nil {
 		log.Fatalf("Unable to convert from parameter: %v\n", cmd.Flag("from").Value.String())
 	}
 	if request.Size, err = strconv.ParseInt(cmd.Flag("number").Value.String(), 10, 64); err != nil {
 		log.Fatalf("Unable to convert n parameter: %v\n", cmd.Flag("n").Value.String())
 	}
-	var short bool
-	if short, err = strconv.ParseBool(cmd.Flag("short").Value.String()); err != nil {
-		log.Fatalf("Unable to convert short parameter: %v\n", cmd.Flag("short").Value.String())
+	var meta bool
+	if meta, err = strconv.ParseBool(cmd.Flag("meta").Value.String()); err != nil {
+		log.Fatalf("Unable to convert meta parameter: %v\n", cmd.Flag("meta").Value.String())
 	}
 	var follow bool
 	if follow, err = strconv.ParseBool(cmd.Flag("follow").Value.String()); err != nil {
@@ -84,7 +84,7 @@ func Logs(amp *client.AMP, cmd *cobra.Command, args []string) error {
 		return err
 	}
 	for _, entry := range r.Entries {
-		displayLogEntry(entry, short)
+		displayLogEntry(entry, meta)
 	}
 	if !follow {
 		return nil
@@ -103,15 +103,15 @@ func Logs(amp *client.AMP, cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		displayLogEntry(entry, short)
+		displayLogEntry(entry, meta)
 	}
 	return nil
 }
 
-func displayLogEntry(entry *logs.LogEntry, short bool) {
-	if short {
-		fmt.Printf("%s\n", entry.Message)
-	} else {
+func displayLogEntry(entry *logs.LogEntry, meta bool) {
+	if meta {
 		fmt.Printf("%+v\n", entry)
+	} else {
+		fmt.Printf("%s\n", entry.Message)
 	}
 }

@@ -2,21 +2,22 @@ package main
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/appcelerator/amp/api/server"
 	flag "github.com/spf13/pflag"
+	"strings"
 )
 
 const (
-	defaultPort             = ":50101"
+	defaultPort         = ":50101"
+	defaultClientID     = ""
+	defaultClientSecret = ""
+)
+
+var (
 	etcdDefaultEndpoints    = "http://localhost:2379"
 	elasticsearchDefaultURL = "http://localhost:9200"
-	defaultClientID         = ""
-	defaultClientSecret     = ""
 	kafkaDefaultURL         = "localhost:9092"
 	influxDefaultURL        = "http://localhost:8086"
-	natsDefaultURL          = "nats://localhost:4222"
 )
 
 // build vars
@@ -38,11 +39,12 @@ var (
 	clientSecret     string
 	kafkaURL         string
 	influxURL        string
-	natsURL          string
+	isService        bool
 )
 
 func parseFlags() {
 	// set up flags
+	flag.BoolVar(&isService, "service", false, "Launched as a service into swarm network")
 	flag.StringVarP(&port, "port", "p", defaultPort, "server port (default '"+defaultPort+"')")
 	flag.StringVarP(&etcdEndpoints, "endpoints", "e", etcdDefaultEndpoints, "etcd comma-separated endpoints")
 	flag.StringVarP(&elasticsearchURL, "elasticsearchURL", "s", elasticsearchDefaultURL, "elasticsearch URL (default '"+elasticsearchDefaultURL+"')")
@@ -50,10 +52,17 @@ func parseFlags() {
 	flag.StringVarP(&clientSecret, "clientsecret", "c", defaultClientSecret, "github app clientsecret (default '"+defaultClientSecret+"')")
 	flag.StringVarP(&kafkaURL, "kafkaURL", "k", kafkaDefaultURL, "kafka URL (default '"+kafkaDefaultURL+"')")
 	flag.StringVarP(&influxURL, "influxURL", "", influxDefaultURL, "InfluxDB URL (default '"+influxDefaultURL+"')")
-	flag.StringVarP(&natsURL, "natsURL", "", natsDefaultURL, "Nats URL (default '"+natsDefaultURL+"')")
 
 	// parse command line flags
 	flag.Parse()
+
+	//Update url is service usage
+	if isService {
+		etcdEndpoints = "http://etcd:2379"
+		elasticsearchURL = "http://elasticsearch:9200"
+		kafkaURL = "kafka:9092"
+		influxURL = "http://influxdb:8086"
+	}
 
 	// update config
 	config.Port = port
@@ -65,7 +74,6 @@ func parseFlags() {
 	config.ElasticsearchURL = elasticsearchURL
 	config.KafkaURL = kafkaURL
 	config.InfluxURL = influxURL
-	config.NatsURL = natsURL
 }
 
 func main() {

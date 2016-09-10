@@ -3,13 +3,8 @@ import:
 - package: github.com/appcelerator/amp
   subpackages:
   - api/rpc/logs
-- package: github.com/docker/engine-api
-  version: ^0.4.0
-  subpackages:
-  - client
-  - types
-  - types/events
-  - types/filters
+- package: github.com/docker/docker/client
+- package: github.com/docker/docker/api/types
 - package: github.com/golang/protobuf
   subpackages:
   - proto
