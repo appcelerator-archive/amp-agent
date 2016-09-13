@@ -1,20 +1,19 @@
-FROM appcelerator/alpine:3.4
+FROM appcelerator/alpine:20160726
 
 ENV GOPATH /go
-ENV PATH /go/bin:$PATH
-RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
-RUN mkdir -p /go/src/github.com/appcelerator/amp-agent /go/bin
-WORKDIR /go/src/github.com/appcelerator/amp-agent
+ENV PATH $PATH:/go/bin
 
-RUN apk update && apk --virtual build-deps add go git curl make && go get -u github.com/Masterminds/glide/...
-
-COPY ./ ./
-RUN glide install && \
+COPY ./ /go/src/github.com/appcelerator/amp-agent
+RUN apk update && \
+    apk --virtual build-deps add go git curl make && \
+    cd /go/src/github.com/appcelerator/amp-agent && \
+    go get -u github.com/Masterminds/glide/... && \
+    glide install && \
     rm -f ./amp-agent && \
     make install && \
-    apk del build-deps && cd / && rm -rf /go/src /var/cache/apk/*
+    rm /go/bin/glide && \
+    apk del build-deps && cd / && rm -rf /go/src /go/pkg /var/cache/apk/* /root/.cache /root/.glide
 
 HEALTHCHECK --interval=5s --timeout=15s --retries=24 CMD curl localhost:3000/api/v1/health
 
 CMD ["/go/bin/amp-agent"]
-
