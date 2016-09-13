@@ -5,7 +5,8 @@ ENV PATH $PATH:/go/bin
 
 COPY ./ /go/src/github.com/appcelerator/amp-agent
 RUN apk update && \
-    apk --virtual build-deps add go git curl make && \
+    apk --virtual build-deps add go git make && \
+    apk add curl && \
     cd /go/src/github.com/appcelerator/amp-agent && \
     go get -u github.com/Masterminds/glide/... && \
     glide install && \
