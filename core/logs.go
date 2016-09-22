@@ -100,6 +100,8 @@ func startReadingLogs(ID string, data *ContainerData) {
     taskName := data.labels["com.docker.swarm.task.name"]
     taskID := data.labels["com.docker.swarm.task.id"]
     nodeID := data.labels["com.docker.swarm.node.id"]
+    stackID := data.labels["io.amp.stack.id"]
+    stackName := data.labels["io.amp.stack.name"]    
     reader := bufio.NewReader(stream)
     fmt.Printf("start reading logs on container: %s\n", data.name)
     nbErr := 0
@@ -126,6 +128,8 @@ func startReadingLogs(ID string, data *ContainerData) {
         ServiceId:   serviceID,
         TaskName:    taskName,
         TaskId:      taskID,
+        StackId:     stackID,
+        StackName:   stackName,
         NodeId:      nodeID,
         ContainerId: ID,
         Message:     slog,
