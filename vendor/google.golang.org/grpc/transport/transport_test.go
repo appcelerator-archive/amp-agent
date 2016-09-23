@@ -40,14 +40,12 @@ import (
 	"math"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"golang.org/x/net/context"
 	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/hpack"
 	"google.golang.org/grpc/codes"
 )
 
@@ -60,15 +58,14 @@ type server struct {
 }
 
 var (
-	expectedRequest            = []byte("ping")
-	expectedResponse           = []byte("pong")
-	expectedRequestLarge       = make([]byte, initialWindowSize*2)
-	expectedResponseLarge      = make([]byte, initialWindowSize*2)
-	expectedInvalidHeaderField = "invalid/content-type"
+	expectedRequest       = []byte("ping")
+	expectedResponse      = []byte("pong")
+	expectedRequestLarge  = make([]byte, initialWindowSize*2)
+	expectedResponseLarge = make([]byte, initialWindowSize*2)
 )
 
 type testStreamHandler struct {
-	t *http2Server
+	t ServerTransport
 }
 
 type hType int
@@ -78,7 +75,6 @@ const (
 	suspended
 	misbehaved
 	encodingRequiredStatus
-	invalidHeaderField
 )
 
 func (h *testStreamHandler) handleStream(t *testing.T, s *Stream) {
@@ -144,16 +140,6 @@ func (h *testStreamHandler) handleStreamEncodingRequiredStatus(t *testing.T, s *
 	h.t.WriteStatus(s, encodingTestStatusCode, encodingTestStatusDesc)
 }
 
-func (h *testStreamHandler) handleStreamInvalidHeaderField(t *testing.T, s *Stream) {
-	<-h.t.writableChan
-	h.t.hBuf.Reset()
-	h.t.hEnc.WriteField(hpack.HeaderField{Name: "content-type", Value: expectedInvalidHeaderField})
-	if err := h.t.writeHeaders(s, h.t.hBuf, false); err != nil {
-		t.Fatalf("Failed to write headers: %v", err)
-	}
-	h.t.writableChan <- 0
-}
-
 // start starts server. Other goroutines should block on s.readyChan for further operations.
 func (s *server) start(t *testing.T, port int, maxStreams uint32, ht hType) {
 	var err error
@@ -191,7 +177,7 @@ func (s *server) start(t *testing.T, port int, maxStreams uint32, ht hType) {
 		}
 		s.conns[transport] = true
 		s.mu.Unlock()
-		h := &testStreamHandler{transport.(*http2Server)}
+		h := &testStreamHandler{transport}
 		switch ht {
 		case suspended:
 			go transport.HandleStreams(h.handleStreamSuspension)
@@ -202,10 +188,6 @@ func (s *server) start(t *testing.T, port int, maxStreams uint32, ht hType) {
 		case encodingRequiredStatus:
 			go transport.HandleStreams(func(s *Stream) {
 				go h.handleStreamEncodingRequiredStatus(t, s)
-			})
-		case invalidHeaderField:
-			go transport.HandleStreams(func(s *Stream) {
-				go h.handleStreamInvalidHeaderField(t, s)
 			})
 		default:
 			go transport.HandleStreams(func(s *Stream) {
@@ -432,7 +414,7 @@ func TestLargeMessageSuspension(t *testing.T) {
 	}
 	// Write should not be done successfully due to flow control.
 	err = ct.Write(s, expectedRequestLarge, &Options{Last: true, Delay: false})
-	expectedErr := streamErrorf(codes.DeadlineExceeded, "%v", context.DeadlineExceeded)
+	expectedErr := StreamErrorf(codes.DeadlineExceeded, "%v", context.DeadlineExceeded)
 	if err != expectedErr {
 		t.Fatalf("Write got %v, want %v", err, expectedErr)
 	}
@@ -765,32 +747,6 @@ func TestEncodingRequiredStatus(t *testing.T) {
 	}
 	if s.StatusCode() != encodingTestStatusCode || s.StatusDesc() != encodingTestStatusDesc {
 		t.Fatalf("stream with status code %d, status desc %v, want %d, %v", s.StatusCode(), s.StatusDesc(), encodingTestStatusCode, encodingTestStatusDesc)
-	}
-	ct.Close()
-	server.stop()
-}
-
-func TestInvalidHeaderField(t *testing.T) {
-	server, ct := setUp(t, 0, math.MaxUint32, invalidHeaderField)
-	callHdr := &CallHdr{
-		Host:   "localhost",
-		Method: "foo",
-	}
-	s, err := ct.NewStream(context.Background(), callHdr)
-	if err != nil {
-		return
-	}
-	opts := Options{
-		Last:  true,
-		Delay: false,
-	}
-	if err := ct.Write(s, expectedRequest, &opts); err != nil && err != io.EOF {
-		t.Fatalf("Failed to write the request: %v", err)
-	}
-	p := make([]byte, http2MaxFrameLen)
-	_, err = s.dec.Read(p)
-	if se, ok := err.(StreamError); !ok || se.Code != codes.FailedPrecondition || !strings.Contains(err.Error(), expectedInvalidHeaderField) {
-		t.Fatalf("Read got error %v, want error with code %s and contains %q", err, codes.FailedPrecondition, expectedInvalidHeaderField)
 	}
 	ct.Close()
 	server.stop()

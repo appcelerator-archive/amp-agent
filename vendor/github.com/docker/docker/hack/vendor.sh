@@ -63,7 +63,7 @@ clone git github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
 # forked golang.org/x/net package includes a patch for lazy loading trace templates
 clone git golang.org/x/net 2beffdc2e92c8a3027590f898fe88f69af48a3f8 https://github.com/tonistiigi/net.git
 clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
-clone git github.com/docker/go-units eb879ae3e2b84e2a142af415b679ddeda47ec71c
+clone git github.com/docker/go-units f2145db703495b2e525c59662db69a7344b00bb8
 clone git github.com/docker/go-connections 988efe982fdecb46f01d53465878ff1f2ff411ce
 
 clone git github.com/docker/engine-api f9cef590446e4e6073b49b652f47a337b897c1a3
@@ -71,7 +71,7 @@ clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 00e7660daeb4b6108a333319d289bf7dc8b9932e
+clone git github.com/docker/libnetwork 51d88e9ae63f4164f3678fe74feda89d6990befa
 clone git github.com/docker/go-events 18b43f1bc85d9cdd42c05a6cd2d444c7a200a894
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -141,7 +141,7 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 clone git github.com/docker/docker-credential-helpers v0.3.0
 
 # containerd
-clone git github.com/docker/containerd 35a736c471ccd3ebfc7b80ceeb0ee303129acd61
+clone git github.com/docker/containerd 4c21ad662f71af56c0e6b29c0afef72df441d1ff
 
 # cluster
 clone git github.com/docker/swarmkit 27fbaef4ceed648bb575969ccc9083a6e104a719

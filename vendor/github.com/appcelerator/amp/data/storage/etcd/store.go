@@ -73,6 +73,9 @@ func (s *etcd) Create(ctx context.Context, key string, val proto.Message, out pr
 	}
 
 	data, err := proto.Marshal(val)
+	if err != nil {
+		return err
+	}
 
 	txn, err := s.client.KV.Txn(ctx).
 		If(notFound(key)).
@@ -156,12 +159,17 @@ func (s *etcd) Update(ctx context.Context, key string, val proto.Message, ttl in
 }
 
 // Delete implements storage.Interface.Delete
-func (s *etcd) Delete(ctx context.Context, key string, out proto.Message) error {
+func (s *etcd) Delete(ctx context.Context, key string, recurse bool, out proto.Message) error {
 	key = s.prefix(key)
+
+	opts := []clientv3.OpOption{clientv3.WithPrefix()}
+	if !recurse {
+		opts = nil
+	}
 
 	txn, err := s.client.KV.Txn(ctx).
 		If().
-		Then(clientv3.OpGet(key), clientv3.OpDelete(key)).
+		Then(clientv3.OpGet(key), clientv3.OpDelete(key, opts...)).
 		Commit()
 	if err != nil {
 		return err
@@ -170,6 +178,9 @@ func (s *etcd) Delete(ctx context.Context, key string, out proto.Message) error 
 	getResp := txn.Responses[0].GetResponseRange()
 	if len(getResp.Kvs) == 0 {
 		return fmt.Errorf("key not found: %q", key)
+	}
+	if out == nil {
+		return nil
 	}
 	kv := getResp.Kvs[0]
 	data := []byte(kv.Value)
@@ -184,8 +195,8 @@ func (s *etcd) List(ctx context.Context, key string, filter storage.Filter, obj 
 	if err != nil {
 		return err
 	}
-
 	kvs := getResp.Kvs
+
 	*out = make([]proto.Message, len(kvs))
 	for i, kv := range kvs {
 		data := []byte(kv.Value)
@@ -200,6 +211,26 @@ func (s *etcd) List(ctx context.Context, key string, filter storage.Filter, obj 
 		(*out)[i] = val
 	}
 
+	return nil
+}
+
+// Create implements storage.Interface.Create
+func (s *etcd) CompareAndSet(ctx context.Context, key string, expect proto.Message, update proto.Message) error {
+	key = s.prefix(key)
+
+	expected, _ := proto.Marshal(expect)
+	updated, _ := proto.Marshal(update)
+
+	txn, err := s.client.KV.Txn(ctx).
+		If(clientv3.Compare(clientv3.Value(key), "=", string(expected))).
+		Then(clientv3.OpPut(key, string(updated))).
+		Commit()
+	if err != nil {
+		return err
+	}
+	if !txn.Succeeded {
+		return fmt.Errorf("transaction failed for key: %v", key)
+	}
 	return nil
 }
 

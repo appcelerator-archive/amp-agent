@@ -813,9 +813,7 @@ RUN [ $(cat "/test dir/test_file6") = 'test6' ]`,
 }
 
 func (s *DockerSuite) TestBuildCopyFileWithWhitespace(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Not currently passing on Windows
-	name := "testcopyfilewithwhitespace"
-	ctx, err := fakeContext(`FROM busybox
+	dockerfile := `FROM busybox
 RUN mkdir "/test dir"
 RUN mkdir "/test_dir"
 COPY [ "test file1", "/test_file1" ]
@@ -829,7 +827,28 @@ RUN [ $(cat "/test file2") = 'test2' ]
 RUN [ $(cat "/test file3") = 'test3' ]
 RUN [ $(cat "/test_dir/test_file4") = 'test4' ]
 RUN [ $(cat "/test dir/test_file5") = 'test5' ]
-RUN [ $(cat "/test dir/test_file6") = 'test6' ]`,
+RUN [ $(cat "/test dir/test_file6") = 'test6' ]`
+
+	if daemonPlatform == "windows" {
+		dockerfile = `FROM windowsservercore
+RUN mkdir "C:/test dir"
+RUN mkdir "C:/test_dir"
+COPY [ "test file1", "/test_file1" ]
+COPY [ "test_file2", "/test file2" ]
+COPY [ "test file3", "/test file3" ]
+COPY [ "test dir/test_file4", "/test_dir/test_file4" ]
+COPY [ "test_dir/test_file5", "/test dir/test_file5" ]
+COPY [ "test dir/test_file6", "/test dir/test_file6" ]
+RUN find "test1" "C:/test_file1"
+RUN find "test2" "C:/test file2"
+RUN find "test3" "C:/test file3"
+RUN find "test4" "C:/test_dir/test_file4"
+RUN find "test5" "C:/test dir/test_file5"
+RUN find "test6" "C:/test dir/test_file6"`
+	}
+
+	name := "testcopyfilewithwhitespace"
+	ctx, err := fakeContext(dockerfile,
 		map[string]string{
 			"test file1":          "test1",
 			"test_file2":          "test2",
@@ -849,7 +868,6 @@ RUN [ $(cat "/test dir/test_file6") = 'test6' ]`,
 }
 
 func (s *DockerSuite) TestBuildCopyWildcard(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testcopywildcard"
 	server, err := fakeStorage(map[string]string{
 		"robots.txt": "hello",
@@ -863,10 +881,10 @@ func (s *DockerSuite) TestBuildCopyWildcard(c *check.C) {
 	ctx, err := fakeContext(fmt.Sprintf(`FROM busybox
 	COPY file*.txt /tmp/
 	RUN ls /tmp/file1.txt /tmp/file2.txt
-	RUN mkdir /tmp1
+	RUN [ "mkdir",  "/tmp1" ]
 	COPY dir* /tmp1/
 	RUN ls /tmp1/dirt /tmp1/nested_file /tmp1/nested_dir/nest_nest_file
-	RUN mkdir /tmp2
+	RUN [ "mkdir",  "/tmp2" ]
         ADD dir/*dir %s/robots.txt /tmp2/
 	RUN ls /tmp2/nest_nest_file /tmp2/robots.txt
 	`, server.URL()),
@@ -2022,7 +2040,6 @@ func (s *DockerSuite) TestBuildPATH(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildContextCleanup(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon)
 
 	name := "testbuildcontextcleanup"
@@ -2031,7 +2048,7 @@ func (s *DockerSuite) TestBuildContextCleanup(c *check.C) {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
 	_, err = buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
         ENTRYPOINT ["/bin/echo"]`,
 		true)
 	if err != nil {

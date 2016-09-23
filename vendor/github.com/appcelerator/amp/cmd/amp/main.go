@@ -26,19 +26,21 @@ var (
 
 	// RootCmd is the base command for the CLI.
 	RootCmd = &cobra.Command{
-		Use:   "amp",
-		Short: "Manage an AMP swarm",
-		Long:  `Manage an AMP swarm.`,
+		Use:   `amp [OPTIONS] COMMAND [arg...]`,
+		Short: "Appcelerator Microservice Platform.",
 	}
 )
 
 // All main does is process commands and flags and invoke the app
 func main() {
-	fmt.Printf("amp (cli version: %s, build: %s)\n", Version, Build)
-
 	cobra.OnInitialize(func() {
 		InitConfig(configFile, &Config, verbose, serverAddr)
-		fmt.Println("Server: " + Config.ServerAddress)
+		if addr := RootCmd.Flag("server").Value.String(); addr != "" {
+			Config.ServerAddress = addr
+		}
+		if Config.ServerAddress == "" {
+			Config.ServerAddress = client.DefaultServerAddress
+		}
 		AMP = client.NewAMP(&Config)
 		AMP.Connect()
 		cli.AtExit(func() {
@@ -48,80 +50,58 @@ func main() {
 		})
 	})
 
-	createCmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a new AMP swarm",
-		Long:  `Create a new AMP swarm for the target environment.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			AMP.Create()
-		},
-	}
-
-	// stopCmd represents the stop command
-	stopCmd := &cobra.Command{
-		Use:   "stop",
-		Short: "Stop a running AMP swarm",
-		Long:  `Stop an running AMP swarm.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			AMP.Stop()
-		},
-	}
-
-	// startCmd represents the start command
-	startCmd := &cobra.Command{
-		Use:   "start",
-		Short: "Start a stopped AMP swarm",
-		Long:  `Start a stopped AMP swarm.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			AMP.Start()
-		},
-	}
-
-	// updateCmd represents the update command
-	updateCmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update an existing AMP swarm",
-		Long:  `Updated an existing AMP swarm.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			AMP.Update()
-		},
-	}
-
-	// statusCmd represents the status command
-	statusCmd := &cobra.Command{
-		Use:   "status",
-		Short: "Get status of a running AMP swarm",
-		Long:  `Get status of a running AMP swarm.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			AMP.Status()
-		},
-	}
-
 	// configCmd represents the Config command
 	configCmd := &cobra.Command{
 		Use:   "config",
 		Short: "Display the current configuration",
-		Long:  `Display the current configuration, taking into account flags and environment variables.`,
+		Long:  `Display the current configuration.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println(Config)
 		},
 	}
+	// infoCmd represents the amp information
+	infoCmd := &cobra.Command{
+		Use:   "info",
+		Short: "Display amp version and server information",
+		Long:  `Display amp version and server information.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("amp (cli version: %s, build: %s)\n", Version, Build)
+			fmt.Printf("Server: %s\n", Config.ServerAddress)
+		},
+	}
+	RootCmd.SetUsageTemplate(usageTemplate)
+	RootCmd.SetHelpTemplate(helpTemplate)
 
-	RootCmd.PersistentFlags().StringVar(&configFile, "Config", "", "Config file (default is $HOME/.amp.yaml)")
-	RootCmd.PersistentFlags().String("target", "local", `target environment ("local"|"virtualbox"|"aws")`)
-	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, `verbose output`)
-	RootCmd.PersistentFlags().StringVar(&serverAddr, "server", client.DefaultServerAddress, "Server address")
-
-	RootCmd.AddCommand(createCmd)
-	RootCmd.AddCommand(stopCmd)
-	RootCmd.AddCommand(startCmd)
-	RootCmd.AddCommand(updateCmd)
-	RootCmd.AddCommand(statusCmd)
+	RootCmd.PersistentFlags().StringVar(&configFile, "config", "", "Config file (default is $HOME/.amp.yaml)")
+	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, `Verbose output`)
+	RootCmd.PersistentFlags().StringVar(&serverAddr, "server", "", "Server address")
 	RootCmd.AddCommand(configCmd)
-
+	RootCmd.AddCommand(infoCmd)
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		cli.Exit(-1)
 	}
 	cli.Exit(0)
 }
+
+var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{.UseLine}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}
+
+{{ .Short | trim }}{{if gt .Aliases 0}}
+
+Aliases:
+  {{.NameAndAliases}}{{end}}{{if .HasExample}}
+
+Examples:
+{{ .Example }}{{end}}{{if .HasFlags}}
+
+Options:
+{{.Flags.FlagUsages | trimRightSpace}}{{end}}{{ if .HasAvailableSubCommands}}
+
+Commands:{{range .Commands}}{{if .IsAvailableCommand}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{ if .HasSubCommands }}
+
+Run '{{.CommandPath}} COMMAND --help' for more information on a command.{{end}}
+`
+
+var helpTemplate = `
+{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`

@@ -86,15 +86,15 @@ the `Using cache` message in the console output.
 
     $ docker build -t svendowideit/ambassador .
     Sending build context to Docker daemon 15.36 kB
-    Step 0 : FROM alpine:3.2
+    Step 1 : FROM alpine:3.2
      ---> 31f630c65071
-    Step 1 : MAINTAINER SvenDowideit@home.org.au
+    Step 2 : MAINTAINER SvenDowideit@home.org.au
      ---> Using cache
      ---> 2a1c91448f5f
-    Step 2 : RUN apk update &&      apk add socat &&        rm -r /var/cache/
+    Step 3 : RUN apk update &&      apk add socat &&        rm -r /var/cache/
      ---> Using cache
      ---> 21ed6e7fbb73
-    Step 3 : CMD env | grep _TCP= | (sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/' && echo wait) | sh
+    Step 4 : CMD env | grep _TCP= | (sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/' && echo wait) | sh
      ---> Using cache
      ---> 7ea8aef582cc
     Successfully built 7ea8aef582cc
@@ -486,13 +486,6 @@ before each new `FROM` command.
 assumes a `latest` by default. The builder returns an error if it cannot match
 the `tag` value.
 
-## MAINTAINER
-
-    MAINTAINER <name>
-
-The `MAINTAINER` instruction allows you to set the *Author* field of the
-generated images.
-
 ## RUN
 
 RUN has 2 forms:
@@ -686,6 +679,20 @@ To view an image's labels, use the `docker inspect` command.
         "multi.label2": "value2",
         "other": "value3"
     },
+
+## MAINTAINER (deprecated)
+
+    MAINTAINER <name>
+
+The `MAINTAINER` instruction sets the *Author* field of the generated images. 
+The `LABEL` instruction is a much more flexible version of this and you should use
+it instead, as it enables setting any metadata you require, and can be viewed
+easily, for example with `docker inspect`. To set a label corresponding to the
+`MAINTAINER` field you could use:
+
+    LABEL maintainer "SvenDowideit@home.org.au"
+
+This will then be visible from `docker inspect` with the other labels.
 
 ## EXPOSE
 
@@ -1161,12 +1168,12 @@ or for executing an ad-hoc command in a container.
 
 The table below shows what command is executed for different `ENTRYPOINT` / `CMD` combinations:
 
-|                                | No ENTRYPOINT              | ENTRYPOINT exec_entry p1_entry                            | ENTRYPOINT ["exec_entry", "p1_entry"]          |
-|--------------------------------|----------------------------|-----------------------------------------------------------|------------------------------------------------|
-| **No CMD**                     | *error, not allowed*       | /bin/sh -c exec_entry p1_entry                            | exec_entry p1_entry                            |
-| **CMD ["exec_cmd", "p1_cmd"]** | exec_cmd p1_cmd            | /bin/sh -c exec_entry p1_entry exec_cmd p1_cmd            | exec_entry p1_entry exec_cmd p1_cmd            |
-| **CMD ["p1_cmd", "p2_cmd"]**   | p1_cmd p2_cmd              | /bin/sh -c exec_entry p1_entry p1_cmd p2_cmd              | exec_entry p1_entry p1_cmd p2_cmd              |
-| **CMD exec_cmd p1_cmd**        | /bin/sh -c exec_cmd p1_cmd | /bin/sh -c exec_entry p1_entry /bin/sh -c exec_cmd p1_cmd | exec_entry p1_entry /bin/sh -c exec_cmd p1_cmd |
+|                                | No ENTRYPOINT              | ENTRYPOINT exec_entry p1_entry | ENTRYPOINT ["exec_entry", "p1_entry"]          |
+|--------------------------------|----------------------------|--------------------------------|------------------------------------------------|
+| **No CMD**                     | *error, not allowed*       | /bin/sh -c exec_entry p1_entry | exec_entry p1_entry                            |
+| **CMD ["exec_cmd", "p1_cmd"]** | exec_cmd p1_cmd            | /bin/sh -c exec_entry p1_entry | exec_entry p1_entry exec_cmd p1_cmd            |
+| **CMD ["p1_cmd", "p2_cmd"]**   | p1_cmd p2_cmd              | /bin/sh -c exec_entry p1_entry | exec_entry p1_entry p1_cmd p2_cmd              |
+| **CMD exec_cmd p1_cmd**        | /bin/sh -c exec_cmd p1_cmd | /bin/sh -c exec_entry p1_entry | exec_entry p1_entry /bin/sh -c exec_cmd p1_cmd |
 
 ## VOLUME
 
@@ -1676,8 +1683,6 @@ something more realistic, take a look at the list of [Dockerization examples](..
 # VERSION               0.0.1
 
 FROM      ubuntu
-MAINTAINER Victor Vieux <victor@docker.com>
-
 LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products" Version="1.0"
 RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
 ```

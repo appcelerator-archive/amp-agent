@@ -17,6 +17,8 @@ message LogEntry {
   string node_id = 7;
   string task_id = 8;
   string task_name = 9;
+  string stack_id = 10;
+  string stack_name = 11;
 }
 
 message GetRequest {
@@ -26,8 +28,8 @@ message GetRequest {
   string message = 4;
   string container_id = 5;
   string node_id = 6;
-  sint64 from = 7;
-  sint64 size = 8;
+  sint64 size = 7;
+  string service_ish = 8;
 }
 
 message GetReply {

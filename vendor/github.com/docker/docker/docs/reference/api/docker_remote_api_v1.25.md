@@ -486,6 +486,24 @@ Create a container
     -   **CgroupParent** - Path to `cgroups` under which the container's `cgroup` is created. If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process. Cgroups are created if they do not already exist.
     -   **VolumeDriver** - Driver that this container users to mount volumes.
     -   **ShmSize** - Size of `/dev/shm` in bytes. The size must be greater than 0.  If omitted the system uses 64MB.
+    -   **Mounts** – Specification for mounts to be added to the container.
+        - **Target** – Container path.
+        - **Source** – Mount source (e.g. a volume name, a host path).
+        - **Type** – The mount type (`bind`, or `volume`).
+          Available types (for the `Type` field):
+          - **bind** - Mounts a file or directory from the host into the container. Must exist prior to creating the container.
+          - **volume** - Creates a volume with the given name and options (or uses a pre-existing volume with the same name and options). These are **not** removed when the container is removed.
+        - **ReadOnly** – A boolean indicating whether the mount should be read-only.
+        - **BindOptions** - Optional configuration for the `bind` type.
+          - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
+        - **VolumeOptions** – Optional configuration for the `volume` type.
+            - **NoCopy** – A boolean indicating if volume should be
+              populated with the data from the target. (Default false)
+            - **Labels** – User-defined name and labels for the volume as key/value pairs: `{"name": "value"}`
+            - **DriverConfig** – Map of driver-specific options.
+              - **Name** - Name of the driver to use to create the volume.
+              - **Options** - key/value map of driver specific options.
+
 
 **Query parameters**:
 
@@ -1286,43 +1304,43 @@ Attach to the container `id`
 -   **409** - container is paused
 -   **500** – server error
 
-    **Stream details**:
+**Stream details**:
 
-    When using the TTY setting is enabled in
-    [`POST /containers/create`
-    ](#create-a-container),
-    the stream is the raw data from the process PTY and client's `stdin`.
-    When the TTY is disabled, then the stream is multiplexed to separate
-    `stdout` and `stderr`.
+When using the TTY setting is enabled in
+[`POST /containers/create`
+](#create-a-container),
+the stream is the raw data from the process PTY and client's `stdin`.
+When the TTY is disabled, then the stream is multiplexed to separate
+`stdout` and `stderr`.
 
-    The format is a **Header** and a **Payload** (frame).
+The format is a **Header** and a **Payload** (frame).
 
-    **HEADER**
+**HEADER**
 
-    The header contains the information which the stream writes (`stdout` or
-    `stderr`). It also contains the size of the associated frame encoded in the
-    last four bytes (`uint32`).
+The header contains the information which the stream writes (`stdout` or
+`stderr`). It also contains the size of the associated frame encoded in the
+last four bytes (`uint32`).
 
-    It is encoded on the first eight bytes like this:
+It is encoded on the first eight bytes like this:
 
-        header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
+header := [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}
 
-    `STREAM_TYPE` can be:
+`STREAM_TYPE` can be:
 
 -   0: `stdin` (is written on `stdout`)
 -   1: `stdout`
 -   2: `stderr`
 
-    `SIZE1, SIZE2, SIZE3, SIZE4` are the four bytes of
-    the `uint32` size encoded as big endian.
+`SIZE1, SIZE2, SIZE3, SIZE4` are the four bytes of
+the `uint32` size encoded as big endian.
 
-    **PAYLOAD**
+**PAYLOAD**
 
-    The payload is the raw stream.
+The payload is the raw stream.
 
-    **IMPLEMENTATION**
+**IMPLEMENTATION**
 
-    The simplest way to implement the Attach protocol is the following:
+The simplest way to implement the Attach protocol is the following:
 
     1.  Read eight bytes.
     2.  Choose `stdout` or `stderr` depending on the first byte.
@@ -2823,8 +2841,8 @@ interactive session with the `exec` command.
 -   **404** – no such exec instance
 -   **409** - container is paused
 
-    **Stream details**:
-    Similar to the stream behavior of `POST /containers/(id or name)/attach` API
+**Stream details**:
+Similar to the stream behavior of `POST /containers/(id or name)/attach` API
 
 ### Exec Resize
 
@@ -4037,7 +4055,7 @@ Return low-level information on the node `id`
 ### Remove a node
 
 
-`DELETE /nodes/<id>`
+`DELETE /nodes/(id)`
 
 Remove a node [`id`] from the swarm.
 
@@ -4065,7 +4083,7 @@ Remove a node [`id`] from the swarm.
 ### Update a node
 
 
-`POST /nodes/<id>/update`
+`POST /nodes/(id)/update`
 
 Update the node `id`.
 

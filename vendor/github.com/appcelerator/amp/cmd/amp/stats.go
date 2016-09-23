@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/appcelerator/amp/api/client"
@@ -14,14 +15,14 @@ import (
 )
 
 const (
-	blank     = "                                                                     "
-	separator = "---------------------------------------------------------------------"
+	blank     = "                                                                                         "
+	separator = "-----------------------------------------------------------------------------------------"
 )
 
 var statsCmd = &cobra.Command{
-	Use:   "stats",
+	Use:   "stats [service name or id] or --flags...",
 	Short: "Display resource usage statistics",
-	Long:  `get statistics on containers, services, nodes about cpu, memory, io, net.`,
+	Long:  `Get statistics on containers, services, nodes about cpu, memory, io, net.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		err := Stats(AMP, cmd, args)
 		if err != nil {
@@ -31,31 +32,31 @@ var statsCmd = &cobra.Command{
 }
 
 func init() {
-	statsCmd.Flags().Bool("container", false, "display stats on containers")
-	statsCmd.Flags().Bool("service", false, "displat stats on services")
-	statsCmd.Flags().Bool("node", false, "display stats on nodes")
-	statsCmd.Flags().Bool("task", false, "display stats on tasks")
+	statsCmd.Flags().Bool("container", false, "Display stats on containers")
+	statsCmd.Flags().Bool("service", false, "Display stats on services")
+	statsCmd.Flags().Bool("node", false, "Display stats on nodes")
+	statsCmd.Flags().Bool("task", false, "Display stats on tasks")
 	//metrics
-	statsCmd.Flags().Bool("cpu", false, "display cpu stats")
-	statsCmd.Flags().Bool("mem", false, "display memory stats")
-	statsCmd.Flags().Bool("io", false, "display disk io stats")
-	statsCmd.Flags().Bool("net", false, "display net rx/tx stats")
+	statsCmd.Flags().Bool("cpu", false, "Display cpu stats")
+	statsCmd.Flags().Bool("mem", false, "Display memory stats")
+	statsCmd.Flags().Bool("io", false, "Display disk io stats")
+	statsCmd.Flags().Bool("net", false, "Display net rx/tx stats")
 	//historic
-	statsCmd.Flags().String("period", "", "historic period of metrics extraction, duration + time-group as 1m, 10m, 4h, see time-group")
-	statsCmd.Flags().String("since", "", "date defining when begin the historic metrics extraction, format: YYYY-MM-DD HH:MM:SS.mmm")
-	statsCmd.Flags().String("until", "", "date defining when stop the historic metrics extraction, format: YYYY-MM-DD HH:MM:SS.mmm")
-	statsCmd.Flags().String("time-group", "", "historic extraction group can be: s:seconds, m:minutes, h:hours, d:days, w:weeks")
+	statsCmd.Flags().String("period", "", "Historic period of metrics extraction, duration + time-group as 1m, 10m, 4h, see time-group")
+	statsCmd.Flags().String("since", "", "Date defining when begin the historic metrics extraction, format: YYYY-MM-DD HH:MM:SS.mmm")
+	statsCmd.Flags().String("until", "", "Date defining when stop the historic metrics extraction, format: YYYY-MM-DD HH:MM:SS.mmm")
+	statsCmd.Flags().String("time-group", "", "Historic extraction group can be: s:seconds, m:minutes, h:hours, d:days, w:weeks")
 	//filters:
-	statsCmd.Flags().String("container-id", "", "filter on container id")
-	statsCmd.Flags().String("container-name", "", "filter on container name")
-	statsCmd.Flags().String("image", "", "filter on container image name")
-	statsCmd.Flags().String("service-name", "", "filter on service name")
-	statsCmd.Flags().String("service-id", "", "filter on service id")
-	statsCmd.Flags().String("task-name", "", "filter on task name")
-	statsCmd.Flags().String("task-id", "", "filter on task id")
-	statsCmd.Flags().String("datacenter", "", "filter on datacenter")
-	statsCmd.Flags().String("host", "", "filter on host")
-	statsCmd.Flags().String("node-id", "", "filter on node id")
+	statsCmd.Flags().String("container-id", "", "Filter on container id")
+	statsCmd.Flags().String("container-name", "", "Filter on container name")
+	statsCmd.Flags().String("image", "", "Filter on container image name")
+	statsCmd.Flags().String("service-name", "", "Filter on service name")
+	statsCmd.Flags().String("service-id", "", "Filter on service id")
+	statsCmd.Flags().String("task-name", "", "Filter on task name")
+	statsCmd.Flags().String("task-id", "", "Filter on task id")
+	statsCmd.Flags().String("datacenter", "", "Filter on datacenter")
+	statsCmd.Flags().String("host", "", "Filter on host")
+	statsCmd.Flags().String("node-id", "", "Filter on node id")
 	//Stream flag
 	statsCmd.Flags().BoolP("follow", "f", false, "Follow stat output")
 
@@ -74,13 +75,13 @@ func Stats(amp *client.AMP, cmd *cobra.Command, args []string) error {
 	//set discriminator
 	if cmd.Flag("container").Value.String() == "true" {
 		query.Discriminator = "container"
-	} else if cmd.Flag("service").Value.String() == "true" {
-		query.Discriminator = "service"
+	} else if cmd.Flag("node").Value.String() == "true" {
+		query.Discriminator = "node"
 	} else if cmd.Flag("task").Value.String() == "true" {
 		query.Discriminator = "task"
 
 	} else {
-		query.Discriminator = "node"
+		query.Discriminator = "service"
 	}
 
 	//set metrics
@@ -109,15 +110,17 @@ func Stats(amp *client.AMP, cmd *cobra.Command, args []string) error {
 	}
 
 	//Set filters
-	query.FilterDatacenter = cmd.Flag("datacenter").Value.String()
-	query.FilterHost = cmd.Flag("host").Value.String()
+	if len(args) > 0 {
+		query.FilterServiceIdent = backQuoteDash(args[0])
+	}
+	query.FilterDatacenter = backQuoteDash(cmd.Flag("datacenter").Value.String())
+	query.FilterHost = backQuoteDash(cmd.Flag("host").Value.String())
 	query.FilterContainerId = cmd.Flag("container-id").Value.String()
-	query.FilterContainerName = cmd.Flag("container-name").Value.String()
-	query.FilterContainerImage = cmd.Flag("image").Value.String()
+	query.FilterContainerName = backQuoteDash(cmd.Flag("container-name").Value.String())
+	query.FilterContainerImage = backQuoteDash(cmd.Flag("image").Value.String())
 	query.FilterServiceId = cmd.Flag("service-id").Value.String()
-	query.FilterServiceName = cmd.Flag("service-name").Value.String()
 	query.FilterTaskId = cmd.Flag("task-id").Value.String()
-	query.FilterTaskName = cmd.Flag("task-name").Value.String()
+	query.FilterTaskName = backQuoteDash(cmd.Flag("task-name").Value.String())
 	query.FilterNodeId = cmd.Flag("node-id").Value.String()
 	//Set historic parameters
 	query.Period = cmd.Flag("period").Value.String()
@@ -125,6 +128,7 @@ func Stats(amp *client.AMP, cmd *cobra.Command, args []string) error {
 	query.Until = cmd.Flag("until").Value.String()
 
 	if amp.Verbose() {
+
 		displayStatsQueryParameters(&query)
 	}
 
@@ -142,6 +146,10 @@ func Stats(amp *client.AMP, cmd *cobra.Command, args []string) error {
 	return startFollow(ctx, c, &query)
 }
 
+func backQuoteDash(val string) string {
+	return strings.Replace(val, "-", "[-]", -1)
+}
+
 func validateQuery(query *stats.StatsRequest) error {
 	if query.Period != "" && (query.Since != "" || query.Until != "") {
 		return errors.New("--period can't be used with --since or --until")
@@ -153,6 +161,10 @@ func executeStat(ctx context.Context, c stats.StatsClient, query *stats.StatsReq
 	r, err := c.StatsQuery(ctx, query)
 	if err != nil {
 		return 0, err
+	}
+	if r.Entries == nil {
+		fmt.Println("No result found")
+		os.Exit(0)
 	}
 	//fmt.Println(r.Entries[0].Time)
 	if currentTime != 0 && r.Entries[0].Time == currentTime {

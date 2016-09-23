@@ -6,26 +6,23 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/appcelerator/amp/api/runtime"
+	"github.com/appcelerator/amp/api/server"
+	"github.com/appcelerator/amp/api/state"
 	"github.com/appcelerator/amp/data/storage"
-	"github.com/appcelerator/amp/data/storage/etcd"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 )
 
 const (
-	defTimeout          = 5 * time.Second
-	defaultPort         = ":50101"
-	etcdDefaultEndpoint = "http://localhost:2379"
+	defTimeout = 5 * time.Second
 )
 
 var (
-	store         storage.Interface
-	port          string
-	etcdEndpoints = []string{etcdDefaultEndpoint}
+	store storage.Interface
 )
 
 func TestMain(m *testing.M) {
@@ -33,15 +30,9 @@ func TestMain(m *testing.M) {
 	log.SetFlags(log.Lshortfile)
 	log.SetPrefix("test: ")
 
-	if endpoints := os.Getenv("endpoints"); endpoints != "" {
-		etcdEndpoints = strings.Split(endpoints, ",")
-	}
+	server.StartTestServer()
 
-	store = etcd.New(etcdEndpoints, "amp")
-	if err := store.Connect(5 * time.Second); err != nil {
-		panic(err)
-	}
-	log.Printf("connected to etcd at %v", strings.Join(store.Endpoints(), ","))
+	store = runtime.Store
 
 	os.Exit(m.Run())
 }
@@ -118,7 +109,7 @@ func TestDelete(t *testing.T) {
 	key := "foo"
 	out := &storage.Project{}
 
-	err := store.Delete(ctx, key, out)
+	err := store.Delete(ctx, key, false, out)
 	// cancel timeout (release resources) if operation completes before timeout
 	defer cancel()
 	if err != nil {
@@ -160,7 +151,7 @@ func TestUpdate(t *testing.T) {
 
 	// cleanup
 	ctx3, cancel3 := newContext()
-	err = store.Delete(ctx3, key, out)
+	err = store.Delete(ctx3, key, false, out)
 	// cancel timeout (release resources) if operation completes before timeout
 	defer cancel3()
 	if err != nil {
@@ -228,7 +219,7 @@ func TestList(t *testing.T) {
 		// clean up after ourselves -- delete the item
 		id := strconv.Itoa(i)
 		subkey := path.Join(key, id)
-		err := store.Delete(ctx, subkey, obj)
+		err := store.Delete(ctx, subkey, false, obj)
 		if err != nil {
 			t.Error(err)
 		}
@@ -236,6 +227,28 @@ func TestList(t *testing.T) {
 		if !proto.Equal(vals[i], obj) {
 			t.Errorf("expected %v, deleted %v", vals[i], obj)
 		}
+	}
+}
+
+func TestCompareAndSet(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), defTimeout)
+	defer cancel()
+
+	key := "state"
+	expect := &state.State{Value: 0}
+	update := &state.State{Value: 42}
+
+	store.Delete(ctx, key, false, &state.State{})
+	store.Create(ctx, key, expect, nil, 0)
+	if err := store.CompareAndSet(ctx, key, expect, update); err != nil {
+		t.Error(err)
+	}
+	actual := &state.State{}
+	if err := store.Get(ctx, key, actual, false); err != nil {
+		t.Error(err)
+	}
+	if !proto.Equal(update, actual) {
+		t.Errorf("expected %v, got %v", update, actual)
 	}
 }
 

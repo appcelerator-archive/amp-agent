@@ -35,36 +35,42 @@ func (logs *Logs) Get(ctx context.Context, in *GetRequest) (*GetReply, error) {
 	// Prepare request to elasticsearch
 	request := logs.Es.GetClient().Search().Index(esIndex)
 	request.Sort("time_id", false)
-	if in.From >= 0 {
-		request.From(int(in.From))
-	}
 	if in.Size != 0 {
 		request.Size(int(in.Size))
 	} else {
 		request.Size(100)
 	}
+
+	masterQuery := elastic.NewBoolQuery()
 	if in.ServiceId != "" {
-		request.Query(elastic.NewTermQuery("service_id", in.ServiceId))
+		masterQuery.Must(elastic.NewPrefixQuery("service_id", in.ServiceId))
 	}
 	if in.ServiceName != "" {
-		request.Query(elastic.NewTermQuery("service_name", in.ServiceName))
+		masterQuery.Must(elastic.NewPrefixQuery("service_name", in.ServiceName))
 	}
 	if in.ContainerId != "" {
-		request.Query(elastic.NewPrefixQuery("container_id", in.ContainerId))
+		masterQuery.Must(elastic.NewPrefixQuery("container_id", in.ContainerId))
 	}
 	if in.NodeId != "" {
-		request.Query(elastic.NewTermQuery("node_id", in.NodeId))
+		masterQuery.Must(elastic.NewPrefixQuery("node_id", in.NodeId))
+	}
+	if in.ServiceIsh != "" {
+		queryString := elastic.NewQueryStringQuery(in.ServiceIsh + "*")
+		queryString.Field("service_id")
+		queryString.Field("service_name")
+		queryString.AnalyzeWildcard(true)
+		masterQuery.Must(queryString)
 	}
 	if in.Message != "" {
-		queryString := elastic.NewQueryStringQuery("*" + in.Message)
-		queryString.DefaultField("message")
+		queryString := elastic.NewQueryStringQuery(in.Message + "*")
+		queryString.Field("message")
 		queryString.AnalyzeWildcard(true)
-		request.Query(queryString)
+		masterQuery.Must(queryString)
 	}
 	// TODO timestamp queries
 
 	// Perform request
-	searchResult, err := request.Do()
+	searchResult, err := request.Query(masterQuery).Do()
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +145,11 @@ func filter(entry *LogEntry, in *GetRequest) bool {
 	}
 	if in.NodeId != "" {
 		match = strings.EqualFold(entry.NodeId, in.NodeId)
+	}
+	if in.ServiceIsh != "" {
+		serviceID := strings.ToLower(entry.ServiceId)
+		serviceName := strings.ToLower(entry.ServiceName)
+		match = strings.HasPrefix(serviceID, strings.ToLower(in.ServiceIsh)) || strings.HasPrefix(serviceName, strings.ToLower(in.ServiceIsh))
 	}
 	if in.Message != "" {
 		match = strings.Contains(strings.ToLower(entry.Message), strings.ToLower(in.Message))

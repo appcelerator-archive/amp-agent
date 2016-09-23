@@ -1,6 +1,6 @@
 
 .PHONY: all clean build build-cli build-server install install-server install-cli fmt simplify check version build-image run
-.PHONY: test test-storage test-influx test-stat test-logs test-build test-project test-service
+.PHONY: test
 
 SHELL := /bin/bash
 BASEDIR := $(shell echo $${PWD})
@@ -96,7 +96,7 @@ build-server-image:
 	@docker build -t appcelerator/$(SERVER):$(TAG) .
 
 proto: $(PROTOFILES)
-	@for DIR in $(DIRS); do cd $(BASEDIR)/$${DIR}; ls *.proto > /dev/null 2>&1 && docker run -u $(UG) --rm --name protoc -t -v $${PWD}:/go/src -v /var/run/docker.sock:/var/run/docker.sock appcelerator/protoc *.proto --go_out=plugins=grpc:. || true; done
+	@go run hack/proto.go
 
 # used to install when you're already inside a container
 install-host: proto-host
@@ -105,7 +105,7 @@ install-host: proto-host
 
 # used to run protoc when you're already inside a container
 proto-host: $(PROTOFILES)
-	@for DIR in $(DIRS); do cd $(BASEDIR)/$${DIR}; ls *.proto > /dev/null 2>&1 && protoc *.proto --go_out=plugins=grpc:. || true; done
+	@go run hack/proto.go -protoc
 
 # format and simplify if possible (https://golang.org/cmd/gofmt/#hdr-The_simplify_command)
 fmt:
@@ -122,25 +122,12 @@ build-image:
 run: build-image
 	@CID=$(shell docker run --net=host -d --name $(SERVER) $(IMAGE)) && echo $${CID}
 
-test: test-storage test-influx test-stat test-logs test-project test-build test-service
-
-test-storage:
-	@go test -v $(REPO)/data/storage/etcd
-
-test-influx:
-	@go test -v $(REPO)/data/influx
-
-test-stat:
-#	@go test -v $(REPO)/api/rpc/stat
-
-test-logs:
-	@go test -v $(REPO)/api/rpc/logs
-
-test-project:
-	@go test -v $(REPO)/api/rpc/project
-
-test-service:
-	@go test -v $(REPO)/api/rpc/service
-
-test-build:
-	@go test -v $(REPO)/api/rpc/build
+test:
+#	@go test $(REPO)/api/rpc/build
+	@go test $(REPO)/api/rpc/logs
+#	@go test $(REPO)/api/rpc/project
+	@go test $(REPO)/api/rpc/service
+	@go test $(REPO)/data/storage/etcd
+	@go test $(REPO)/api/rpc/stack
+	@go test $(REPO)/data/influx
+	@go test $(REPO)/api/rpc/stats
