@@ -134,7 +134,7 @@ func startReadingLogs(ID string, data *ContainerData) {
 				ContainerId: ID,
 				Message:     slog,
 				Timestamp:   ntime.Format(time.RFC3339Nano),
-				TimeId:      line[8:38], //TODO:have a true timeId
+				TimeId:      time.Now().Format(time.RFC3339Nano),
 			}
 
 			encoded, err := proto.Marshal(&logEntry)
