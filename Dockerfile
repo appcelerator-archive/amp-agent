@@ -15,6 +15,6 @@ RUN apk update && \
     rm /go/bin/glide && \
     apk del build-deps && cd / && rm -rf /go/src /go/pkg /var/cache/apk/* /root/.cache /root/.glide
 
-HEALTHCHECK --interval=5s --timeout=15s --retries=24 CMD curl localhost:3000/api/v1/health
+HEALTHCHECK --interval=10s --timeout=15s --retries=12 CMD curl localhost:3000/api/v1/health
 
 CMD ["/go/bin/amp-agent"]
