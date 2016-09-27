@@ -1,9 +1,7 @@
 package core
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
@@ -25,36 +23,27 @@ func updateEventsStream() {
 		args.Add("event", "start")
 		eventsOptions := types.EventsOptions{Filters: args}
 		stream, err := agent.dockerClient.Events(context.Background(), eventsOptions)
-		agent.eventsStream = stream
-		if err != nil {
-			fmt.Printf("docker event stream open error: %v\n", err)
-		} else {
-			startEventStream(stream)
-		}
+		startEventStream(stream, err)
 	}
 }
 
 //Start and read the docker event stream, send events to kafka and update container list accordingly
-func startEventStream(stream io.ReadCloser) {
-	dec := json.NewDecoder(stream)
+func startEventStream(stream <-chan events.Message, errs <-chan error) {
 	agent.eventStreamReading = true
 	fmt.Println("start events stream reader")
 	go func() {
 		for {
-			var event events.Message
-			err := dec.Decode(&event)
-			if err != nil {
-				fmt.Println(err)
-				agent.eventStreamReading = false
-				stream.Close()
-				return
+			select {
+			case err := <-errs:
+				if err != nil {
+					fmt.Printf("Error reading event: %v\n", err)
+					agent.eventStreamReading = false
+					return
+				}
+			case event := <-stream:
+				fmt.Printf("Docker event: action=%s containerId=%s\n", event.Action, event.Actor.ID)
+				agent.updateContainerMap(event.Action, event.Actor.ID)
 			}
-			fmt.Printf("Docker event: action=%s containerId=%s\n", event.Action, event.Actor.ID)
-			agent.updateContainerMap(event.Action, event.Actor.ID)
-			//if conf.kafka != "" && kafka.kafkaReady {
-			//	kafka.sendEvent(event)
-			//}
-			// TODO: send to NATS
 		}
 	}()
 }

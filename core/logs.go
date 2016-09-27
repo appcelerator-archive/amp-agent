@@ -150,7 +150,6 @@ func startReadingLogs(ID string, data *ContainerData) {
 				nbErr++
 				if nbErr > 20 {
 					fmt.Println("Kafka not ready anymore: exit")
-					agent.eventsStream.Close()
 					closeLogsStreams()
 					agent.kafkaClient.Close()
 					os.Exit(1)

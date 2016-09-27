@@ -1,8 +1,8 @@
-hash: 7806fd4058c0d5816bba9b213ea41e284621a69bc89e9f1779b1d2d3c09998a0
-updated: 2016-09-23T11:43:47.616549125-07:00
+hash: 0ee1cdb2f7ea419890124e93ac02471773abfd774223248b9c026d668305467d
+updated: 2016-09-27T18:26:15.644264955+02:00
 imports:
 - name: github.com/appcelerator/amp
-  version: 2dd6ddfef77ba0efe0563f34e0805d1111ed104a
+  version: c39131f09ec4725a7695cb6ce3d6361fb59a0b17
   subpackages:
   - api/rpc/logs
   - data/elasticsearch
@@ -13,12 +13,12 @@ imports:
   subpackages:
   - spew
 - name: github.com/docker/distribution
-  version: 12acdf0a6c1e56d965ac6eb395d2bce687bf22fc
+  version: 99cb7c0946d2f5a38015443e515dc916295064d7
   subpackages:
   - digest
   - reference
 - name: github.com/docker/docker
-  version: 39f5d97cde3f93953be3c9172034b83d61bff710
+  version: 1dbf3c65e15a2d021cc15ded9caaf6192d58970b
   subpackages:
   - api/types
   - api/types/blkiodev
@@ -34,10 +34,9 @@ imports:
   - api/types/time
   - api/types/versions
   - client
-  - client/transport
-  - client/transport/cancellable
+  - pkg/tlsconfig
 - name: github.com/docker/go-connections
-  version: 990a1a1a70b0da4c4cb70e117971a4f0babfbf1a
+  version: 988efe982fdecb46f01d53465878ff1f2ff411ce
   subpackages:
   - nat
   - sockets
@@ -53,7 +52,7 @@ imports:
 - name: github.com/eapache/queue
   version: 44cc805cf13205b55f69e14bcb69867d1ae92f98
 - name: github.com/golang/protobuf
-  version: 1f49d83d9aa00e6ce4fc8258c71cc7786aec968a
+  version: 87c000235d3d852c1628dc9490cd21ab36a7d69f
   subpackages:
   - proto
 - name: github.com/golang/snappy
@@ -63,33 +62,34 @@ imports:
 - name: github.com/Microsoft/go-winio
   version: ce2922f643c8fd76b46cadc7f404a06282678b34
 - name: github.com/opencontainers/runc
-  version: b1e602e8ba592a663a4eb63ed9c18d6b2b475fec
+  version: 2940d2e2e9365b4b3fec8ae24822435195f56b61
   subpackages:
   - libcontainer/user
 - name: github.com/pkg/errors
-  version: 17b591df37844cde689f4d5813e5cea0927d8dd2
+  version: a887431f7f6ef7687b556dbf718d9f351d4858a0
 - name: github.com/Shopify/sarama
   version: bd61cae2be85fa6ff40eb23dcdd24567967ac2ae
 - name: github.com/Sirupsen/logrus
-  version: 55eb11d21d2a31a3cc93838241d04800f52e823d
-  subpackages:
-  - formatters/logstash
+  version: 3ec0642a7fb6488f65b06f9040adc67e3990296a
 - name: golang.org/x/net
-  version: 4876518f9e71663000c348837735820161a42df7
+  version: f09c4662a0bd6bd8943ac7b4931e185df9471da4
   subpackages:
   - context
   - context/ctxhttp
   - http2
   - http2/hpack
+  - idna
   - internal/timeseries
+  - lex/httplex
   - proxy
   - trace
 - name: golang.org/x/sys
-  version: 30de6d19a3bd89a5f38ae4028e23aaa5582648af
+  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
   subpackages:
+  - unix
   - windows
 - name: google.golang.org/grpc
-  version: 0032a855ba5c8a3c8e0d71c2deef354b70af1584
+  version: 590256047f42067a8c96e0e7fd497d3896dc041a
   subpackages:
   - codes
   - credentials
@@ -104,6 +104,4 @@ imports:
   subpackages:
   - backoff
   - uritemplates
-testImports:
-- name: github.com/haoxins/supertest
-  version: 6e4ae37169c0aaf5b4a41559bc3e2f57a4361efd
+testImports: []

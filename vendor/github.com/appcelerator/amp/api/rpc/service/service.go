@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
@@ -26,33 +25,61 @@ const serviceRoleLabelName = "io.amp.role"
 // Service is used to implement ServiceServer
 type Service struct{}
 
+// SwarmMode is needed to export isServiceSpec_Mode type, which consumers can use to
+// create a variable and assign either a ServiceSpec_Replicated or ServiceSpec_Global struct
+type SwarmMode isServiceSpec_Mode
+
 func init() {
 	docker, err = client.NewClient(dockerSock, defaultVersion, nil, defaultHeaders)
 	if err != nil {
 		// fail fast
-		log.Println("new client ....")
 		panic(err)
 	}
 }
 
 // Create implements ServiceServer
 func (s *Service) Create(ctx context.Context, req *ServiceCreateRequest) (*ServiceCreateResponse, error) {
-	log.Println(req)
-
-	// TODO: pass-through right now, but will be refactored into a helper library
-	response, err := CreateService(docker, ctx, req)
+	response, err := Create(ctx, req)
 	return response, err
 }
 
-// CreateService uses docker api to create a service
-func CreateService(docker *client.Client, ctx context.Context, req *ServiceCreateRequest) (*ServiceCreateResponse, error) {
+// Remove implements ServiceServer
+func (s *Service) Remove(ctx context.Context, req *RemoveRequest) (*RemoveResponse, error) {
+	err := Remove(ctx, req.Ident)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveResponse{
+		Ident: req.Ident,
+	}
+
+	return response, nil
+}
+
+// Create uses docker api to create a service
+func Create(ctx context.Context, req *ServiceCreateRequest) (*ServiceCreateResponse, error) {
 
 	serv := req.ServiceSpec
-	//prepare swarm.ServiceSpec full instance
+
+	var serviceMode swarm.ServiceMode
+	switch mode := serv.Mode.(type) {
+	case *ServiceSpec_Replicated:
+		serviceMode = swarm.ServiceMode{
+			Replicated: &swarm.ReplicatedService{
+				Replicas: &mode.Replicated.Replicas,
+			},
+		}
+	case *ServiceSpec_Global:
+		serviceMode = swarm.ServiceMode{
+			Global: &swarm.GlobalService{},
+		}
+	}
+
 	service := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   serv.Name,
-			Labels: make(map[string]string),
+			Labels: serv.Labels,
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
@@ -80,19 +107,19 @@ func CreateService(docker *client.Client, ctx context.Context, req *ServiceCreat
 			LogDriver: nil, //*Driver
 		},
 		Networks: nil, //[]NetworkAttachmentConfig
-		Mode: swarm.ServiceMode{
-			Replicated: &swarm.ReplicatedService{
-				Replicas: &serv.Replicas,
-			},
-		},
 		UpdateConfig: &swarm.UpdateConfig{
 			Parallelism:   0,
 			Delay:         0,
 			FailureAction: "",
 		},
 		EndpointSpec: nil, // &EndpointSpec
+		Mode:         serviceMode,
 	}
-	//add common labels
+
+	// add environment
+	service.TaskTemplate.ContainerSpec.Env = serv.Env
+
+	// ensure supplied service label map is not nil, then add custom amp labels
 	if service.Annotations.Labels == nil {
 		service.Annotations.Labels = make(map[string]string)
 	}
@@ -130,7 +157,7 @@ func CreateService(docker *client.Client, ctx context.Context, req *ServiceCreat
 }
 
 // Remove uses docker api to remove a service
-func (s *Service) Remove(ctx context.Context, ID string) error {
+func Remove(ctx context.Context, ID string) error {
 	fmt.Printf("Service removed %s\n", ID)
 	return docker.ServiceRemove(ctx, ID)
 }

@@ -19,7 +19,6 @@ import (
 type Agent struct {
 	dockerClient       *client.Client
 	containers         map[string]*ContainerData
-	eventsStream       io.ReadCloser
 	eventStreamReading bool
 	lastUpdate         time.Time
 	kafkaClient        Kafka
@@ -174,7 +173,6 @@ func (agt *Agent) trapSignal() {
 	go func() {
 		<-ch
 		fmt.Println("\namp-agent received SIGTERM signal")
-		agt.eventsStream.Close()
 		closeLogsStreams()
 		//kafka.close()
 		agt.kafkaClient.Close()

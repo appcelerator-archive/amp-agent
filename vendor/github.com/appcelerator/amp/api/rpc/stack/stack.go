@@ -28,7 +28,7 @@ func (s *Server) Up(ctx context.Context, in *UpRequest) (*UpReply, error) {
 	if stackByName.Id != "" {
 		return nil, fmt.Errorf("Stack %s already exists", in.StackName)
 	}
-	stack, err := NewStackFromYaml(ctx, in.Stackfile)
+	stack, err := newStackFromYaml(ctx, in.Stackfile)
 	if err != nil {
 		return nil, err
 	}
@@ -86,10 +86,9 @@ func (s *Server) getStack(ctx context.Context, in *StackRequest) (*Stack, error)
 // clean up if error happended during stack creation, delete all created services and all etcd data
 func (s *Server) rollbackServiceStack(ctx context.Context, stackID string, serviceIDList []string) {
 	fmt.Printf("removing created services %s\n", stackID)
-	server := service.Service{}
 	for _, ID := range serviceIDList {
 		if ID != "" {
-			server.Remove(ctx, ID)
+			service.Remove(ctx, ID)
 			s.Store.Delete(ctx, path.Join(servicesRootKey, ID), true, nil)
 		}
 	}
@@ -207,7 +206,6 @@ func (s *Server) Stop(ctx context.Context, in *StackRequest) (*StackReply, error
 }
 
 func (s *Server) stopStackServices(ctx context.Context, ID string, force bool) error {
-	server := service.Service{}
 	listKeys := &ServiceIdList{}
 	err := s.Store.Get(ctx, path.Join(stackRootKey, ID, servicesRootKey), listKeys, true)
 	if err != nil && !force {
@@ -215,7 +213,7 @@ func (s *Server) stopStackServices(ctx context.Context, ID string, force bool) e
 	}
 	var removeErr error
 	for _, key := range listKeys.List {
-		err := server.Remove(ctx, key)
+		err := service.Remove(ctx, key)
 		if err != nil {
 			removeErr = err
 		}
@@ -300,4 +298,19 @@ func (s *Server) getStackInfo(ctx context.Context, ID string) *StackInfo {
 		}
 	}
 	return &info
+}
+
+// newStackFromYaml create a new stack from yaml
+func newStackFromYaml(ctx context.Context, config string) (stack *Stack, err error) {
+	stack, err = ParseStackfile(ctx, config)
+	if err != nil {
+		return
+	}
+
+	// Create stack state
+	if err = stackStateMachine.CreateState(stack.Id, int32(StackState_Stopped)); err != nil {
+		return
+	}
+
+	return
 }

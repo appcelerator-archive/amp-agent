@@ -123,6 +123,11 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create/` and `POST /containers/(name)/update` now validates restart policies.
 * `POST /containers/create` now validates IPAMConfig in NetworkingConfig, and returns error for invalid IPv4 and IPv6 addresses (`--ip` and `--ip6` in `docker create/run`).
 * `POST /containers/create` now takes a `Mounts` field in `HostConfig` which replaces `Binds` and `Volumes`. *note*: `Binds` and `Volumes` are still available but are exclusive with `Mounts`
+* `POST /build` now performs a preliminary validation of the `Dockerfile` before starting the build, and returns an error if the syntax is incorrect. Note that this change is _unversioned_ and applied to all API versions.
+* `POST /build` accepts `cachefrom` parameter to specify images used for build cache.
+* `GET /networks/` endpoint now correctly returns a list of *all* networks,
+  instead of the default network if a trailing slash is provided, but no `name`
+  or `id`.
 
 ### v1.24 API changes
 
@@ -134,7 +139,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
   with ContainerD in Docker 1.11.
 * `GET /networks` now supports filtering by `label` and `driver`.
 * `GET /containers/json` now supports filtering containers by `network` name or id.
-* `POST /containers/create` now takes `MaximumIOps` and `MaximumIOBps` fields. Windows daemon only.
+* `POST /containers/create` now takes `IOMaximumBandwidth` and `IOMaximumIOps` fields. Windows daemon only.
 * `POST /containers/create` now returns an HTTP 400 "bad parameter" message
   if no command is specified (instead of an HTTP 500 "server error")
 * `GET /images/search` now takes a `filters` query parameter.

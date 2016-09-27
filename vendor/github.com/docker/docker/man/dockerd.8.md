@@ -34,6 +34,7 @@ dockerd - Enable daemon mode
 [**-H**|**--host**[=*[]*]]
 [**--help**]
 [**--icc**[=*true*]]
+[**--init**[=*false*]]
 [**--insecure-registry**[=*[]*]]
 [**--ip**[=*0.0.0.0*]]
 [**--ip-forward**[=*true*]]
@@ -165,6 +166,9 @@ unix://[/path/to/socket] to use.
 
 **--icc**=*true*|*false*
   Allow unrestricted inter\-container and Docker daemon host communication. If disabled, containers can still be linked together using the **--link** option (see **docker-run(1)**). Default is true.
+
+**--init**
+Run an init process inside containers for signal forwarding and process reaping.
 
 **--insecure-registry**=[]
   Enable insecure registry communication, i.e., enable un-encrypted and/or untrusted communication.
@@ -528,6 +532,21 @@ Engine daemon, grow the size of loop files and restart the daemon to resolve
 the issue.
 
 Example use:: `dockerd --storage-opt dm.min_free_space=10%`
+
+#### dm.xfs_nospace_max_retries
+
+Specifies the maximum number of retries XFS should attempt to complete
+IO when ENOSPC (no space) error is returned by underlying storage device.
+
+By default XFS retries infinitely for IO to finish and this can result
+in unkillable process. To change this behavior one can set
+xfs_nospace_max_retries to say 0 and XFS will not retry IO after getting
+ENOSPC and will shutdown filesystem.
+
+Example use:
+
+    $ sudo dockerd --storage-opt dm.xfs_nospace_max_retries=0
+
 
 ## ZFS options
 
