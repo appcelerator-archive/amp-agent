@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package etcd;
-
-message TestMessage {
-  string id = 1;
-  string name = 2;
-}

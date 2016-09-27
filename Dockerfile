@@ -1,4 +1,3 @@
-#FROM appcelerator/alpine:20160726
 FROM golang:1.7-alpine
 
 ENV GOPATH /go
