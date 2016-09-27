@@ -127,7 +127,11 @@ func (agt *Agent) addContainer(ID string) {
 			if inspect.State.Health != nil {
 				data.health = inspect.State.Health.Status
 			}
-			fmt.Println("add container", data.name)
+			if data.labels["io.amp.role"] == "infrastructure" {
+				fmt.Printf("add infrastructure container %s\n", data.name)
+			} else {
+				fmt.Printf("add user container %s, stack=%s service=%s\n", data.name, data.labels["io.amp.stack.name"], data.labels["io.amp.service.name"])
+			}
 			agt.containers[ID] = &data
 		} else {
 			fmt.Printf("Container inspect error: %v\n", err)
