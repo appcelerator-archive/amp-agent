@@ -1,12 +1,14 @@
-FROM appcelerator/alpine:20160726
+#FROM appcelerator/alpine:20160726
+FROM golang:1.7-alpine
 
 ENV GOPATH /go
 ENV PATH $PATH:/go/bin
 
 COPY ./ /go/src/github.com/appcelerator/amp-agent
 RUN apk update && \
-    apk --virtual build-deps add go git make && \
-    apk add curl && \
+    apk --virtual build-deps add git make && \
+    apk add curl bash && \
+
     cd /go/src/github.com/appcelerator/amp-agent && \
     go get -u github.com/Masterminds/glide/... && \
     glide install && \
