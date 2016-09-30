@@ -39,7 +39,6 @@ var agent Agent
 
 //AgentInit Connect to docker engine, get initial containers list and start the agent
 func AgentInit(version string, build string) error {
-	runtime.GOMAXPROCS(50)
 	agent.trapSignal()
 	conf.init(version, build)
 	err := agent.kafkaClient.Connect(conf.kafkaHost)
