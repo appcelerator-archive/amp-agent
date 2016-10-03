@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 
