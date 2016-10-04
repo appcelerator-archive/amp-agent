@@ -121,7 +121,10 @@ func startReadingLogs(ID string, data *ContainerData) {
 			}
 
 			slog = strings.TrimSuffix(line[39:], "\n")
-			ntime, _ := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
+			timestamp, err := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
+			if err != nil {
+				timestamp = time.Now()
+			}
 
 			logEntry := logs.LogEntry{
 				ServiceName: serviceName,
@@ -133,8 +136,8 @@ func startReadingLogs(ID string, data *ContainerData) {
 				NodeId:      nodeID,
 				ContainerId: ID,
 				Message:     slog,
-				Timestamp:   ntime.Format(time.RFC3339Nano),
-				TimeId:      time.Now().Format(time.RFC3339Nano),
+				Timestamp:   timestamp.Format(time.RFC3339Nano),
+				TimeId:      timestamp.Format(time.RFC3339Nano),
 			}
 
 			encoded, err := proto.Marshal(&logEntry)
