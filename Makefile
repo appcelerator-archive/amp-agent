@@ -25,8 +25,9 @@ GENERATED := $(shell find . -type f -name '*.pb.go' -not -path './vendor/*' -not
 # ignore generated files when formatting/linting/vetting
 CHECKSRC := $(shell find . -type f -name '*.go' -not -name '*.pb.go' -not -path './vendor/*' -not -path './.git/*')
 
+NAME := amp-agent
 OWNER := appcelerator
-REPO := github.com/$(OWNER)/amp-agent
+REPO := github.com/$(OWNER)/$(NAME)
 
 TAG := latest
 IMAGE := $(OWNER)/amp:$(TAG)
@@ -42,6 +43,8 @@ clean:
 
 install:
 	@go install $(LDFLAGS) $(REPO)
+	@cp $(GOPATH)/bin/$(NAME) .
+
 
 # used to build under Docker
 install-host:
@@ -66,10 +69,10 @@ run: build
 	@CID=$(shell docker run --net=host -d --name amp-agent $(IMAGE)) && echo $${CID}
 
 install-deps:
-	@glide install --strip-vcs --strip-vendor --update-vendored
+	@glide install
 
 update-deps:
-	@glide update --strip-vcs --strip-vendor --update-vendored
+	@glide update
 
 test:
 	@go test -v $(REPO)

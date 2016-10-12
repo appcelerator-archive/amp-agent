@@ -1,5 +1,5 @@
 Dockerfile
-./.git
 README.md
 docker-compose.*.yml
 vendor/
+.git

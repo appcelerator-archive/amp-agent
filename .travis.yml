@@ -1,0 +1,25 @@
+sudo: required
+
+services:
+  - docker
+
+language: go
+
+go:
+  - 1.7.1
+
+install:
+  - go get -u github.com/golang/lint/golint
+  - go get -u github.com/Masterminds/glide
+  - make install-deps
+
+script:
+  - make install
+
+after_success:
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+      docker build -t appcelerator/amp-agent .;
+      docker push appcelerator/amp-agent:test;
+    fi
+
+
