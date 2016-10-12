@@ -1,4 +1,4 @@
-FROM alpine:1.6
+FROM alpine:3.4
 
 COPY amp-agent /amp-agent
 
