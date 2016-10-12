@@ -3,6 +3,8 @@ package main
 import (
 	"github.com/appcelerator/amp-agent/core"
 	"log"
+	"net/http"
+	"os"
 )
 
 // build vars
@@ -15,8 +17,27 @@ var (
 )
 
 func main() {
+	args := os.Args[1:]
+	if len(args) > 0 && args[0] == "healthcheck" {
+		if !healthcheck() {
+			os.Exit(1)
+		} 
+		os.Exit(0)
+	}
 	err := core.AgentInit(Version, Build)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func healthcheck() bool {
+ 	response, err := http.Get("http://localhost:3000/api/v1/healthcheck")
+        if err != nil {
+               return false
+        } 
+	if response.StatusCode == 400 {
+		return false
+	} 
+        return true
+
 }

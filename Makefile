@@ -63,6 +63,9 @@ check:
 	@for d in $$(go list ./... | grep -v /vendor/); do golint $${d} | sed '/pb\.go/d'; done
 	@go tool vet ${CHECKSRC}
 
+build2:
+	@go install $(LDFLAGS) $(REPO)
+
 build:
 	@docker build -t $(IMAGE) .
 
