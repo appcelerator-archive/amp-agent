@@ -15,9 +15,11 @@ install:
 
 script:
   - make install
+  - docker build -t appcelerator/amp-agent:test .
+  - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+  - docker push appcelerator/amp-agent:test
 
 after_success:
-  - docker build -t appcelerator/amp-agent:test .;
-  - docker push appcelerator/amp-agent:test;
+
 
 
