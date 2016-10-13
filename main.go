@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"fmt"
 )
 
 // build vars
@@ -32,9 +33,11 @@ func main() {
 
 func healthcheck() bool {
  	response, err := http.Get("http://localhost:3000/api/v1/healthcheck")
+ 	fmt.Println(err)
         if err != nil {
                return false
         } 
+        fmt.Println(response.StatusCode)
 	if response.StatusCode == 400 {
 		return false
 	} 
