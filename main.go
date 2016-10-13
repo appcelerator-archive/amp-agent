@@ -21,8 +21,10 @@ func main() {
 	args := os.Args[1:]
 	if len(args) > 0 && args[0] == "healthcheck" {
 		if !healthcheck() {
+			fmt.Println("ko")
 			os.Exit(1)
 		} 
+		fmt.Println("ok")
 		os.Exit(0)
 	}
 	err := core.AgentInit(Version, Build)
