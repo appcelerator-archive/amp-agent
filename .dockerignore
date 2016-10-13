@@ -3,4 +3,3 @@ README.md
 docker-compose.*.yml
 vendor/
 .git
-amp-agent
