@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"fmt"
 )
 
 // build vars
@@ -21,10 +20,8 @@ func main() {
 	args := os.Args[1:]
 	if len(args) > 0 && args[0] == "healthcheck" {
 		if !healthcheck() {
-			fmt.Println("ko")
 			os.Exit(1)
 		} 
-		fmt.Println("ok")
 		os.Exit(0)
 	}
 	err := core.AgentInit(Version, Build)
@@ -35,11 +32,9 @@ func main() {
 
 func healthcheck() bool {
  	response, err := http.Get("http://localhost:3000/api/v1/health")
- 	fmt.Println(err)
         if err != nil {
                return false
         } 
-        fmt.Println(response.StatusCode)
 	if response.StatusCode == 200 {
 		return true
 	} 
