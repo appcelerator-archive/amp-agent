@@ -1,4 +1,4 @@
-FROM alpine:4.3
+FROM scratch
 
 COPY ./amp-agent /amp-agent
 
