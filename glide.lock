@@ -1,8 +1,8 @@
-hash: 0ee1cdb2f7ea419890124e93ac02471773abfd774223248b9c026d668305467d
-updated: 2016-09-27T21:26:11.623065848+02:00
+hash: 2b73757537a07e0a405b65138bbd3a9665aa63dd8456e8a2af25d649c72d18b8
+updated: 2016-10-13T15:08:04.640495519+02:00
 imports:
 - name: github.com/appcelerator/amp
-  version: c39131f09ec4725a7695cb6ce3d6361fb59a0b17
+  version: fff88706979407af8e72a537500a605df960e2de
   subpackages:
   - api/rpc/logs
   - data/elasticsearch
@@ -13,12 +13,12 @@ imports:
   subpackages:
   - spew
 - name: github.com/docker/distribution
-  version: 99cb7c0946d2f5a38015443e515dc916295064d7
+  version: 252cc27ab1272108bfd74cf939d354db77862d93
   subpackages:
   - digest
   - reference
 - name: github.com/docker/docker
-  version: 1dbf3c65e15a2d021cc15ded9caaf6192d58970b
+  version: 535f52c932c24056cf535f0f7aa8cadc880b2194
   subpackages:
   - api/types
   - api/types/blkiodev
@@ -51,8 +51,14 @@ imports:
   version: bb955e01b9346ac19dc29eb16586c90ded99a98c
 - name: github.com/eapache/queue
   version: 44cc805cf13205b55f69e14bcb69867d1ae92f98
+- name: github.com/gogo/protobuf
+  version: 99cb9b23110011cc45571c901ecae6f6f5e65cd3
+  subpackages:
+  - gogoproto
+  - proto
+  - protoc-gen-gogo/descriptor
 - name: github.com/golang/protobuf
-  version: 87c000235d3d852c1628dc9490cd21ab36a7d69f
+  version: 98fa357170587e470c5f27d3c3ea0947b71eb455
   subpackages:
   - proto
 - name: github.com/golang/snappy
@@ -61,35 +67,44 @@ imports:
   version: 19b0b332c9e4516a6370a0456e6182c3b5036720
 - name: github.com/Microsoft/go-winio
   version: ce2922f643c8fd76b46cadc7f404a06282678b34
+- name: github.com/nats-io/go-nats-streaming
+  version: 1875d675b301931c7037d118eac68dca8c99ceed
+  subpackages:
+  - pb
+- name: github.com/nats-io/nats
+  version: 6fb7c9f736bfbbf5757b5886eaa1b03e5331fef2
+  subpackages:
+  - encoders/builtin
+- name: github.com/nats-io/nuid
+  version: 289cccf02c178dc782430d534e3c1f5b72af807f
 - name: github.com/opencontainers/runc
-  version: 2940d2e2e9365b4b3fec8ae24822435195f56b61
+  version: 3b4ff53867e49156326d80ccd57efadd4ba60504
   subpackages:
   - libcontainer/user
 - name: github.com/pkg/errors
-  version: a887431f7f6ef7687b556dbf718d9f351d4858a0
+  version: 839d9e913e063e28dfd0e6c7b7512793e0a48be9
 - name: github.com/Shopify/sarama
   version: bd61cae2be85fa6ff40eb23dcdd24567967ac2ae
 - name: github.com/Sirupsen/logrus
-  version: 3ec0642a7fb6488f65b06f9040adc67e3990296a
+  version: 55eb11d21d2a31a3cc93838241d04800f52e823d
+  subpackages:
+  - formatters/logstash
 - name: golang.org/x/net
-  version: f09c4662a0bd6bd8943ac7b4931e185df9471da4
+  version: 4876518f9e71663000c348837735820161a42df7
   subpackages:
   - context
   - context/ctxhttp
   - http2
   - http2/hpack
-  - idna
   - internal/timeseries
-  - lex/httplex
   - proxy
   - trace
 - name: golang.org/x/sys
-  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
+  version: 9bb9f0998d48b31547d975974935ae9b48c7a03c
   subpackages:
-  - unix
   - windows
 - name: google.golang.org/grpc
-  version: 590256047f42067a8c96e0e7fd497d3896dc041a
+  version: d3ddb4469d5a1b949fc7a7da7c1d6a0d1b6de994
   subpackages:
   - codes
   - credentials
@@ -100,7 +115,7 @@ imports:
   - peer
   - transport
 - name: gopkg.in/olivere/elastic.v3
-  version: 8aebafbe930f500c844141889501595622b336a3
+  version: eaecbad7a83e6b60f131825553e5eb7fd5a50b41
   subpackages:
   - backoff
   - uritemplates

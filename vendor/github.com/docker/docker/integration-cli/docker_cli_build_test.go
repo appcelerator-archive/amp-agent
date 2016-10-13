@@ -531,7 +531,6 @@ func (s *DockerSuite) TestBuildCacheAdd(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildLastModified(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildlastmodified"
 
 	server, err := fakeStorage(map[string]string{
@@ -545,32 +544,27 @@ func (s *DockerSuite) TestBuildLastModified(c *check.C) {
 	var out, out2 string
 
 	dFmt := `FROM busybox
-ADD %s/file /
-RUN ls -le /file`
+ADD %s/file /`
 
 	dockerfile := fmt.Sprintf(dFmt, server.URL())
 
-	if _, out, err = buildImageWithOut(name, dockerfile, false); err != nil {
+	if _, _, err = buildImageWithOut(name, dockerfile, false); err != nil {
 		c.Fatal(err)
 	}
 
-	originMTime := regexp.MustCompile(`root.*/file.*\n`).FindString(out)
-	// Make sure our regexp is correct
-	if strings.Index(originMTime, "/file") < 0 {
-		c.Fatalf("Missing ls info on 'file':\n%s", out)
-	}
+	out, _ = dockerCmd(c, "run", name, "ls", "-le", "/file")
 
 	// Build it again and make sure the mtime of the file didn't change.
 	// Wait a few seconds to make sure the time changed enough to notice
 	time.Sleep(2 * time.Second)
 
-	if _, out2, err = buildImageWithOut(name, dockerfile, false); err != nil {
+	if _, _, err = buildImageWithOut(name, dockerfile, false); err != nil {
 		c.Fatal(err)
 	}
+	out2, _ = dockerCmd(c, "run", name, "ls", "-le", "/file")
 
-	newMTime := regexp.MustCompile(`root.*/file.*\n`).FindString(out2)
-	if newMTime != originMTime {
-		c.Fatalf("MTime changed:\nOrigin:%s\nNew:%s", originMTime, newMTime)
+	if out != out2 {
+		c.Fatalf("MTime changed:\nOrigin:%s\nNew:%s", out, out2)
 	}
 
 	// Now 'touch' the file and make sure the timestamp DID change this time
@@ -585,13 +579,13 @@ RUN ls -le /file`
 
 	dockerfile = fmt.Sprintf(dFmt, server.URL())
 
-	if _, out2, err = buildImageWithOut(name, dockerfile, false); err != nil {
+	if _, _, err = buildImageWithOut(name, dockerfile, false); err != nil {
 		c.Fatal(err)
 	}
+	out2, _ = dockerCmd(c, "run", name, "ls", "-le", "/file")
 
-	newMTime = regexp.MustCompile(`root.*/file.*\n`).FindString(out2)
-	if newMTime == originMTime {
-		c.Fatalf("MTime didn't change:\nOrigin:%s\nNew:%s", originMTime, newMTime)
+	if out == out2 {
+		c.Fatalf("MTime didn't change:\nOrigin:%s\nNew:%s", out, out2)
 	}
 
 }
@@ -4001,7 +3995,7 @@ func (s *DockerSuite) TestBuildAddTarXzGz(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestBuildFromGIT(c *check.C) {
+func (s *DockerSuite) TestBuildFromGit(c *check.C) {
 	name := "testbuildfromgit"
 	git, err := newFakeGit("repo", map[string]string{
 		"Dockerfile": `FROM busybox
@@ -4025,7 +4019,7 @@ func (s *DockerSuite) TestBuildFromGIT(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
+func (s *DockerSuite) TestBuildFromGitWithContext(c *check.C) {
 	name := "testbuildfromgit"
 	git, err := newFakeGit("repo", map[string]string{
 		"docker/Dockerfile": `FROM busybox
@@ -4050,7 +4044,7 @@ func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildFromGITwithF(c *check.C) {
+func (s *DockerSuite) TestBuildFromGitwithF(c *check.C) {
 	name := "testbuildfromgitwithf"
 	git, err := newFakeGit("repo", map[string]string{
 		"myApp/myDockerfile": `FROM busybox
@@ -5149,7 +5143,6 @@ func (s *DockerSuite) TestBuildSpaces(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildSpacesWithQuotes(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// Test to make sure that spaces in quotes aren't lost
 	name := "testspacesquotes"
 
@@ -5163,6 +5156,10 @@ RUN echo "  \
 	}
 
 	expecting := "\n    foo  \n"
+	// Windows uses the builtin echo, which preserves quotes
+	if daemonPlatform == "windows" {
+		expecting = "\"    foo  \""
+	}
 	if !strings.Contains(out, expecting) {
 		c.Fatalf("Bad output: %q expecting to contain %q", out, expecting)
 	}
@@ -6258,7 +6255,6 @@ func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *check.C) {
 // TestBuildSymlinkBasename tests that target file gets basename from symlink,
 // not from the target file.
 func (s *DockerSuite) TestBuildSymlinkBasename(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildbrokensymlink"
 	ctx, err := fakeContext(`
 	FROM busybox
@@ -6551,13 +6547,11 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *check.C) 
 
 // Test cases in #22036
 func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	// Command line option labels will always override
 	name := "scratchy"
 	expected := `{"bar":"from-flag","foo":"from-flag"}`
 	_, err := buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
                 LABEL foo=from-dockerfile`,
 		true, "--label", "foo=from-flag", "--label", "bar=from-flag")
 	c.Assert(err, check.IsNil)
@@ -6570,7 +6564,7 @@ func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
 	name = "from"
 	expected = `{"foo":"from-dockerfile"}`
 	_, err = buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
                 LABEL foo from-dockerfile`,
 		true)
 	c.Assert(err, check.IsNil)
@@ -6599,7 +6593,7 @@ func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
 	name = "scratchy2"
 	expected = `{"bar":"","foo":""}`
 	_, err = buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
                 LABEL foo=from-dockerfile`,
 		true, "--label", "foo", "--label", "bar=")
 	c.Assert(err, check.IsNil)
@@ -6629,7 +6623,7 @@ func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
 	name = "scratchy"
 	expected = `{"bar":"from-flag","foo":"from-flag"}`
 	_, err = buildImage(name,
-		`FROM scratch`,
+		`FROM `+minimalBaseImage(),
 		true, "--label", "foo=from-flag", "--label", "bar=from-flag")
 	c.Assert(err, check.IsNil)
 
@@ -6899,6 +6893,17 @@ func (s *DockerSuite) TestBuildCmdShellArgsEscaped(c *check.C) {
 	if res != `["cmd","/S","/C","\"ipconfig\""]` {
 		c.Fatalf("CMD was not escaped Config.Cmd: got %v", res)
 	}
+}
+
+func (s *DockerSuite) TestContinueCharSpace(c *check.C) {
+	// Test to make sure that we don't treat a \ as a continuation
+	// character IF there are spaces (or tabs) after it on the same line
+	name := "testbuildcont"
+	_, err := buildImage(name, "FROM busybox\nRUN echo hi \\\t\nbye", true)
+	c.Assert(err, check.NotNil, check.Commentf("Build 1 should fail - didn't"))
+
+	_, err = buildImage(name, "FROM busybox\nRUN echo hi \\ \nbye", true)
+	c.Assert(err, check.NotNil, check.Commentf("Build 2 should fail - didn't"))
 }
 
 // Test case for #24912.

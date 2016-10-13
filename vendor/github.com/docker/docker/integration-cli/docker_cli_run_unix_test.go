@@ -1155,6 +1155,24 @@ func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunAmbientCapabilities(c *check.C) {
+	testRequires(c, DaemonIsLinux, ambientCapabilities)
+
+	// test that a non root user can gain capabilities
+	runCmd := exec.Command(dockerBinary, "run", "--user", "1000", "--cap-add", "chown", "busybox", "chown", "100", "/tmp")
+	_, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test that non root user has default capabilities
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000", "busybox", "chown", "100", "/tmp")
+	_, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	// test this fails without cap_chown
+	runCmd = exec.Command(dockerBinary, "run", "--user", "1000", "--cap-drop", "chown", "busybox", "chown", "100", "/tmp")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "chown: /tmp: Operation not permitted")
+}
+
 func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 	testRequires(c, SameHostDaemon, Apparmor)
 
@@ -1229,8 +1247,8 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "bb7df04e1b0a2570657527a7e108ae23", check.Commentf("expected output bb7df04e1b0a2570657527a7e108ae23"))
 }
 
-// TestRunPidsLimit makes sure the pids cgroup is set with --pids-limit
-func (s *DockerSuite) TestRunPidsLimit(c *check.C) {
+// TestRunPIDsLimit makes sure the pids cgroup is set with --pids-limit
+func (s *DockerSuite) TestRunPIDsLimit(c *check.C) {
 	testRequires(c, pidsLimit)
 
 	file := "/sys/fs/cgroup/pids/pids.max"

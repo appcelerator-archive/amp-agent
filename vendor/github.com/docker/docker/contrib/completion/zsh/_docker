@@ -333,6 +333,9 @@ __docker_complete_ps_filters() {
             (id)
                 __docker_containers_ids && ret=0
                 ;;
+            (is-task)
+                _describe -t boolean-filter-opts "filter options" boolean_opts && ret=0
+                ;;
             (name)
                 __docker_containers_names && ret=0
                 ;;
@@ -1506,6 +1509,7 @@ __docker_subcommand() {
                 $opts_build_create_run \
                 $opts_build_create_run_update \
                 "($help)*--build-arg[Build-time variables]:<varname>=<value>: " \
+                "($help)--compress[Compress the build context using gzip]" \
                 "($help -f --file)"{-f=,--file=}"[Name of the Dockerfile]:Dockerfile:_files" \
                 "($help)--force-rm[Always remove intermediate containers]" \
                 "($help)*--label=[Set metadata for an image]:label=value: " \
@@ -1594,6 +1598,7 @@ __docker_subcommand() {
                 "($help -g --graph)"{-g=,--graph=}"[Root of the Docker runtime]:path:_directories" \
                 "($help -H --host)"{-H=,--host=}"[tcp://host:port to bind/connect to]:host: " \
                 "($help)--icc[Enable inter-container communication]" \
+                "($help)--init-path=[Path to the docker-init binary]:docker-init binary:_files" \
                 "($help)*--insecure-registry=[Enable insecure registry communication]:registry: " \
                 "($help)--ip=[Default IP when binding container ports]" \
                 "($help)--ip-forward[Enable net.ipv4.ip_forward]" \
@@ -1878,11 +1883,17 @@ __docker_subcommand() {
                 "($help -):old name:__docker_containers" \
                 "($help -):new name: " && ret=0
             ;;
-        (restart|stop)
+        (stop)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -t --time)"{-t=,--time=}"[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)" \
                 "($help -)*:containers:__docker_runningcontainers" && ret=0
+            ;;
+        (restart)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -t --time)"{-t=,--time=}"[Number of seconds to try to stop for before killing the container]:seconds to before killing:(1 5 10 30 60)" \
+                "($help -)*:containers:__docker_containers_ids" && ret=0
             ;;
         (rm)
             _arguments $(__docker_arguments) \

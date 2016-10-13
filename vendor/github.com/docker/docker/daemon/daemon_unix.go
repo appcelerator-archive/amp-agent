@@ -37,8 +37,10 @@ import (
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/opencontainers/runc/libcontainer/label"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -515,7 +517,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 }
 
 // platformReload update configuration with platform specific options
-func (daemon *Daemon) platformReload(config *Config, attributes *map[string]string) {
+func (daemon *Daemon) platformReload(config *Config) map[string]string {
 	if config.IsValueSet("runtimes") {
 		daemon.configStore.Runtimes = config.Runtimes
 		// Always set the default one
@@ -535,8 +537,10 @@ func (daemon *Daemon) platformReload(config *Config, attributes *map[string]stri
 		runtimeList.WriteString(fmt.Sprintf("%s:%s", name, rt))
 	}
 
-	(*attributes)["runtimes"] = runtimeList.String()
-	(*attributes)["default-runtime"] = daemon.configStore.DefaultRuntime
+	return map[string]string{
+		"runtimes":        runtimeList.String(),
+		"default-runtime": daemon.configStore.DefaultRuntime,
+	}
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
@@ -609,7 +613,7 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 }
 
 func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
-	netOptions, err := daemon.networkOptions(config, activeSandboxes)
+	netOptions, err := daemon.networkOptions(config, daemon.PluginStore, activeSandboxes)
 	if err != nil {
 		return nil, err
 	}
@@ -637,11 +641,21 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 			return nil, fmt.Errorf("Error creating default \"host\" network: %v", err)
 		}
 	}
+
+	// Clear stale bridge network
+	if n, err := controller.NetworkByName("bridge"); err == nil {
+		if err = n.Delete(); err != nil {
+			return nil, fmt.Errorf("could not delete the default bridge network: %v", err)
+		}
+	}
+
 	if !config.DisableBridge {
 		// Initialize default driver "bridge"
 		if err := initBridgeDriver(controller, config); err != nil {
 			return nil, err
 		}
+	} else {
+		removeDefaultBridgeInterface()
 	}
 
 	return controller, nil
@@ -651,7 +665,8 @@ func driverOptions(config *Config) []nwconfig.Option {
 	bridgeConfig := options.Generic{
 		"EnableIPForwarding":  config.bridgeConfig.EnableIPForward,
 		"EnableIPTables":      config.bridgeConfig.EnableIPTables,
-		"EnableUserlandProxy": config.bridgeConfig.EnableUserlandProxy}
+		"EnableUserlandProxy": config.bridgeConfig.EnableUserlandProxy,
+		"UserlandProxyPath":   config.bridgeConfig.UserlandProxyPath}
 	bridgeOption := options.Generic{netlabel.GenericData: bridgeConfig}
 
 	dOptions := []nwconfig.Option{}
@@ -660,12 +675,6 @@ func driverOptions(config *Config) []nwconfig.Option {
 }
 
 func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
-	if n, err := controller.NetworkByName("bridge"); err == nil {
-		if err = n.Delete(); err != nil {
-			return fmt.Errorf("could not delete the default bridge network: %v", err)
-		}
-	}
-
 	bridgeName := bridge.DefaultBridgeName
 	if config.bridgeConfig.Iface != "" {
 		bridgeName = config.bridgeConfig.Iface
@@ -777,6 +786,15 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		return fmt.Errorf("Error creating default \"bridge\" network: %v", err)
 	}
 	return nil
+}
+
+// Remove default bridge interface if present (--bridge=none use case)
+func removeDefaultBridgeInterface() {
+	if lnk, err := netlink.LinkByName(bridge.DefaultBridgeName); err == nil {
+		if err := netlink.LinkDel(lnk); err != nil {
+			logrus.Warnf("Failed to remove bridge interface (%s): %v", bridge.DefaultBridgeName, err)
+		}
+	}
 }
 
 func (daemon *Daemon) getLayerInit() func(string) error {
@@ -1151,7 +1169,18 @@ func setupOOMScoreAdj(score int) error {
 	if err != nil {
 		return err
 	}
-	_, err = f.WriteString(strconv.Itoa(score))
+
+	stringScore := strconv.Itoa(score)
+	_, err = f.WriteString(stringScore)
+	if os.IsPermission(err) {
+		// Setting oom_score_adj does not work in an
+		// unprivileged container. Ignore the error, but log
+		// it if we appear not to be in that situation.
+		if !rsystem.RunningInUserNS() {
+			logrus.Debugf("Permission denied writing %q to /proc/self/oom_score_adj", stringScore)
+		}
+		return nil
+	}
 	f.Close()
 	return err
 }

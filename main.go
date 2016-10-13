@@ -19,9 +19,9 @@ var (
 func main() {
 	args := os.Args[1:]
 	if len(args) > 0 && args[0] == "healthcheck" {
-		if !healthcheck() {
+		if !healthy() {
 			os.Exit(1)
-		} 
+		}
 		os.Exit(0)
 	}
 	err := core.AgentInit(Version, Build)
@@ -30,13 +30,13 @@ func main() {
 	}
 }
 
-func healthcheck() bool {
- 	response, err := http.Get("http://127.0.0.1:3000/api/v1/health")
-        if err != nil {
-               return false
-        } 
-	if response.StatusCode == 200 {
-		return true
-	} 
-        return false
+func healthy() bool {
+	response, err := http.Get("http://127.0.0.1:3000/api/v1/health")
+	if err != nil {
+		return false
+	}
+	if response.StatusCode != 200 {
+		return false
+	}
+	return true
 }

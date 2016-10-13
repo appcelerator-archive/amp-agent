@@ -10,10 +10,12 @@ import:
   - client
 - package: github.com/appcelerator/amp
   subpackages:
-  - api/rpc/logs  
+  - api/rpc/logs
 - package: github.com/golang/protobuf
   subpackages:
   - proto
 - package: golang.org/x/net
   subpackages:
   - context
+- package: github.com/nats-io/go-nats-streaming
+  version: ^0.2.0

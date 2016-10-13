@@ -153,7 +153,8 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 }
 
 // platformReload update configuration with platform specific options
-func (daemon *Daemon) platformReload(config *Config, attributes *map[string]string) {
+func (daemon *Daemon) platformReload(config *Config) map[string]string {
+	return map[string]string{}
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
@@ -186,7 +187,7 @@ func configureMaxThreads(config *Config) error {
 }
 
 func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
-	netOptions, err := daemon.networkOptions(config, nil)
+	netOptions, err := daemon.networkOptions(config, nil, nil)
 	if err != nil {
 		return nil, err
 	}

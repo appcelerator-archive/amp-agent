@@ -8,10 +8,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Shopify/sarama"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/nats-io/go-nats-streaming"
 	"golang.org/x/net/context"
+	"log"
+	"math/rand"
+	"strconv"
 )
 
 //Agent data
@@ -20,8 +23,9 @@ type Agent struct {
 	containers         map[string]*ContainerData
 	eventStreamReading bool
 	lastUpdate         time.Time
-	kafkaClient        Kafka
-	kafkaProducer      sarama.AsyncProducer
+	//kafkaClient        Kafka
+	//kafkaProducer      sarama.AsyncProducer
+	natsClient stan.Conn
 }
 
 //ContainerData data
@@ -40,32 +44,22 @@ var agent Agent
 func AgentInit(version string, build string) error {
 	agent.trapSignal()
 	conf.init(version, build)
-	err := agent.kafkaClient.Connect(conf.kafkaHost)
-	if err != nil {
-		return err
-	}
-	fmt.Println("Connected to Kafka")
 
-	agent.kafkaClient.WaitForTopic(kafkaLogsTopic, 60 /* seconds */)
+	var err error
+	agent.natsClient, err = stan.Connect(conf.clusterID, conf.clientID+strconv.Itoa(rand.Int()), stan.NatsURL(conf.natsURL))
 	if err != nil {
 		return err
 	}
-	fmt.Println("Kafka topic available", kafkaLogsTopic)
-
-	agent.kafkaProducer, err = agent.kafkaClient.NewAsyncProducer()
-	if err != nil {
-		return err
-	}
-	fmt.Println("Kafka producer successfuly created")
+	log.Println("Connected to NATS-Streaming")
 
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	cli, err := client.NewClient(conf.dockerEngine, "v1.24", nil, defaultHeaders)
 	if err != nil {
-		agent.kafkaClient.Close()
+		//agent.kafkaClient.Close()
+		agent.natsClient.Close()
 		return err
 	}
 	agent.dockerClient = cli
-
 	fmt.Println("Connected to Docker-engine")
 
 	fmt.Println("Extracting containers list...")
@@ -73,7 +67,8 @@ func AgentInit(version string, build string) error {
 	ContainerListOptions := types.ContainerListOptions{All: true}
 	containers, err := agent.dockerClient.ContainerList(context.Background(), ContainerListOptions)
 	if err != nil {
-		agent.kafkaClient.Close()
+		//agent.kafkaClient.Close()
+		agent.natsClient.Close()
 		return err
 	}
 	for _, cont := range containers {
@@ -173,7 +168,8 @@ func (agt *Agent) trapSignal() {
 		fmt.Println("\namp-agent received SIGTERM signal")
 		closeLogsStreams()
 		//kafka.close()
-		agt.kafkaClient.Close()
+		//agt.kafkaClient.Close()
+		agent.natsClient.Close()
 		os.Exit(1)
 	}()
 }

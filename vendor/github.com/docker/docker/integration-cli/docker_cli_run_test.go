@@ -184,7 +184,7 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerName(c *check.C) {
 }
 
 //test --link use container id to link target
-func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
+func (s *DockerSuite) TestRunLinksContainerWithContainerID(c *check.C) {
 	// TODO Windows: This test cannot run on a Windows daemon as the networking
 	// settings are not populated back yet on inspect.
 	testRequires(c, DaemonIsLinux)
@@ -1709,7 +1709,7 @@ func (s *DockerSuite) TestRunState(c *check.C) {
 }
 
 // Test for #1737
-func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
+func (s *DockerSuite) TestRunCopyVolumeUIDGID(c *check.C) {
 	// Not applicable on Windows as it does not support uid or gid in this way
 	testRequires(c, DaemonIsLinux)
 	name := "testrunvolumesuidgid"
@@ -1864,7 +1864,7 @@ func (s *DockerSuite) TestRunInteractiveWithRestartPolicy(c *check.C) {
 		dockerCmdWithResult("stop", name).Assert(c, icmd.Success)
 	}()
 
-	result = icmd.WaitOnCmd(10*time.Second, result)
+	result = icmd.WaitOnCmd(60*time.Second, result)
 	c.Assert(result, icmd.Matches, icmd.Expected{ExitCode: 11})
 }
 
@@ -2484,7 +2484,7 @@ func (s *DockerSuite) TestRunModeIpcContainerNotRunning(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunModePidContainer(c *check.C) {
+func (s *DockerSuite) TestRunModePIDContainer(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
@@ -2509,7 +2509,7 @@ func (s *DockerSuite) TestRunModePidContainer(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunModePidContainerNotExists(c *check.C) {
+func (s *DockerSuite) TestRunModePIDContainerNotExists(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "-d", "--pid", "container:abcd1234", "busybox", "top")
@@ -2518,7 +2518,7 @@ func (s *DockerSuite) TestRunModePidContainerNotExists(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunModePidContainerNotRunning(c *check.C) {
+func (s *DockerSuite) TestRunModePIDContainerNotRunning(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
@@ -2576,7 +2576,7 @@ func (s *DockerSuite) TestContainerNetworkMode(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunModePidHost(c *check.C) {
+func (s *DockerSuite) TestRunModePIDHost(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
@@ -2623,7 +2623,7 @@ func (s *DockerSuite) TestRunModeUTSHost(c *check.C) {
 	c.Assert(out, checker.Contains, runconfig.ErrConflictUTSHostname.Error())
 }
 
-func (s *DockerSuite) TestRunTLSverify(c *check.C) {
+func (s *DockerSuite) TestRunTLSVerify(c *check.C) {
 	// Remote daemons use TLS and this test is not applicable when TLS is required.
 	testRequires(c, SameHostDaemon)
 	if out, code, err := dockerCmdWithError("ps"); err != nil || code != 0 {
@@ -2958,7 +2958,7 @@ func (s *DockerSuite) TestRunContainerWithRmFlagCannotStartContainer(c *check.C)
 	}
 }
 
-func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
+func (s *DockerSuite) TestRunPIDHostWithChildIsKillable(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	name := "ibuildthecloud"
@@ -4518,4 +4518,42 @@ func (s *DockerSuite) TestRunStoppedLoggingDriverNoLeak(c *check.C) {
 
 	// NGoroutines is not updated right away, so we need to wait before failing
 	c.Assert(waitForGoroutines(nroutines), checker.IsNil)
+}
+
+// Handles error conditions for --credentialspec. Validating E2E success cases
+// requires additional infrastructure (AD for example) on CI servers.
+func (s *DockerSuite) TestRunCredentialSpecFailures(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	attempts := []struct{ value, expectedError string }{
+		{"rubbish", "invalid credential spec security option - value must be prefixed file:// or registry://"},
+		{"rubbish://", "invalid credential spec security option - value must be prefixed file:// or registry://"},
+		{"file://", "no value supplied for file:// credential spec security option"},
+		{"registry://", "no value supplied for registry:// credential spec security option"},
+		{`file://c:\blah.txt`, "path cannot be absolute"},
+		{`file://doesnotexist.txt`, "The system cannot find the file specified"},
+	}
+	for _, attempt := range attempts {
+		_, _, err := dockerCmdWithError("run", "--security-opt=credentialspec="+attempt.value, "busybox", "true")
+		c.Assert(err, checker.NotNil, check.Commentf("%s expected non-nil err", attempt.value))
+		c.Assert(err.Error(), checker.Contains, attempt.expectedError, check.Commentf("%s expected %s got %s", attempt.value, attempt.expectedError, err))
+	}
+}
+
+// Windows specific test to ensure that a servicing app container is started
+// if necessary once a container exits. It does this by forcing a no-op
+// servicing event and verifying the event from Hyper-V-Compute
+func (s *DockerSuite) TestRunServicingContainer(c *check.C) {
+	testRequires(c, DaemonIsWindows, SameHostDaemon)
+
+	out, _ := dockerCmd(c, "run", "-d", WindowsBaseImage, "cmd", "/c", "mkdir c:\\programdata\\Microsoft\\Windows\\ContainerUpdates\\000_000_d99f45d0-ffc8-4af7-bd9c-ea6a62e035c9_200 && sc control cexecsvc 255")
+	containerID := strings.TrimSpace(out)
+	err := waitExited(containerID, 60*time.Second)
+	c.Assert(err, checker.IsNil)
+
+	cmd := exec.Command("powershell", "echo", `(Get-WinEvent -ProviderName "Microsoft-Windows-Hyper-V-Compute" -FilterXPath 'Event[System[EventID=2010]]' -MaxEvents 1).Message`)
+	out2, _, err := runCommandWithOutput(cmd)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out2, checker.Contains, `"Servicing":true`, check.Commentf("Servicing container does not appear to have been started: %s", out2))
+	c.Assert(out2, checker.Contains, `Windows Container (Servicing)`, check.Commentf("Didn't find 'Windows Container (Servicing): %s", out2))
+	c.Assert(out2, checker.Contains, containerID+"_servicing", check.Commentf("Didn't find '%s_servicing': %s", containerID+"_servicing", out2))
 }

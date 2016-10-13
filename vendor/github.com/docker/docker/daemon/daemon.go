@@ -40,6 +40,7 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/signal"
@@ -95,7 +96,7 @@ type Daemon struct {
 	gidMaps                   []idtools.IDMap
 	layerStore                layer.Store
 	imageStore                image.Store
-	pluginStore               *pluginstore.Store
+	PluginStore               *pluginstore.Store
 	nameIndex                 *registrar.Registrar
 	linkIndex                 *linkIndex
 	containerd                libcontainerd.Client
@@ -188,12 +189,13 @@ func (daemon *Daemon) restore() error {
 				logrus.Errorf("Failed to migrate old mounts to use new spec format")
 			}
 
-			rm := c.RestartManager(false)
 			if c.IsRunning() || c.IsPaused() {
-				if err := daemon.containerd.Restore(c.ID, libcontainerd.WithRestartManager(rm)); err != nil {
+				c.RestartManager().Cancel() // manually start containers because some need to wait for swarm networking
+				if err := daemon.containerd.Restore(c.ID); err != nil {
 					logrus.Errorf("Failed to restore %s with containerd: %s", c.ID, err)
 					return
 				}
+				c.ResetRestartManager(false)
 				if !c.HostConfig.NetworkMode.IsContainer() && c.IsRunning() {
 					options, err := daemon.buildSandboxOptions(c)
 					if err != nil {
@@ -299,7 +301,7 @@ func (daemon *Daemon) restore() error {
 
 			// Make sure networks are available before starting
 			daemon.waitForNetworks(c)
-			if err := daemon.containerStart(c, ""); err != nil {
+			if err := daemon.containerStart(c, "", true); err != nil {
 				logrus.Errorf("Failed to start container %s: %s", c.ID, err)
 			}
 			close(chNotify)
@@ -371,7 +373,7 @@ func (daemon *Daemon) RestartSwarmContainers() {
 				group.Add(1)
 				go func(c *container.Container) {
 					defer group.Done()
-					if err := daemon.containerStart(c, ""); err != nil {
+					if err := daemon.containerStart(c, "", true); err != nil {
 						logrus.Error(err)
 					}
 				}(c)
@@ -546,12 +548,18 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
+	if runtime.GOOS == "windows" {
+		if err := idtools.MkdirAllAs(filepath.Join(config.Root, "credentialspecs"), 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
+			return nil, err
+		}
+	}
+
 	driverName := os.Getenv("DOCKER_DRIVER")
 	if driverName == "" {
 		driverName = config.GraphDriver
 	}
 
-	d.pluginStore = pluginstore.NewStore(config.Root)
+	d.PluginStore = pluginstore.NewStore(config.Root)
 
 	d.layerStore, err = layer.NewStoreFromOptions(layer.StoreOptions{
 		StorePath:                 config.Root,
@@ -560,7 +568,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		GraphDriverOptions:        config.GraphOptions,
 		UIDMaps:                   uidMaps,
 		GIDMaps:                   gidMaps,
-		PluginGetter:              d.pluginStore,
+		PluginGetter:              d.PluginStore,
 	})
 	if err != nil {
 		return nil, err
@@ -669,7 +677,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
-	// Plugin system initialization should happen before restore. Dont change order.
+	// Plugin system initialization should happen before restore. Do not change order.
 	if err := pluginInit(d, config, containerdRemote); err != nil {
 		return nil, err
 	}
@@ -726,8 +734,6 @@ func (daemon *Daemon) Shutdown() error {
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
 
-	pluginShutdown()
-
 	if daemon.configStore.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
 		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
@@ -752,6 +758,9 @@ func (daemon *Daemon) Shutdown() error {
 			logrus.Debugf("container stopped %s", c.ID)
 		})
 	}
+
+	// Shutdown plugins after containers. Dont change the order.
+	pluginShutdown()
 
 	// trigger libnetwork Stop only if it's initialized
 	if daemon.netController != nil {
@@ -917,7 +926,7 @@ func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore
 		return nil, err
 	}
 
-	volumedrivers.RegisterPluginGetter(daemon.pluginStore)
+	volumedrivers.RegisterPluginGetter(daemon.PluginStore)
 
 	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
 		return nil, fmt.Errorf("local volume driver could not be registered")
@@ -959,25 +968,23 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // - Daemon max concurrent uploads
 // - Cluster discovery (reconfigure and restart).
 // - Daemon live restore
-func (daemon *Daemon) Reload(config *Config) error {
-	var err error
-	// used to hold reloaded changes
-	attributes := map[string]string{}
+func (daemon *Daemon) Reload(config *Config) (err error) {
 
-	// We need defer here to ensure the lock is released as
-	// daemon.SystemInfo() will try to get it too
+	daemon.configStore.reloadLock.Lock()
+
+	attributes := daemon.platformReload(config)
+
 	defer func() {
+		// we're unlocking here, because
+		// LogDaemonEventWithAttributes() -> SystemInfo() -> GetAllRuntimes()
+		// holds that lock too.
+		daemon.configStore.reloadLock.Unlock()
 		if err == nil {
 			daemon.LogDaemonEventWithAttributes("reload", attributes)
 		}
 	}()
 
-	daemon.configStore.reloadLock.Lock()
-	defer daemon.configStore.reloadLock.Unlock()
-
-	daemon.platformReload(config, &attributes)
-
-	if err = daemon.reloadClusterDiscovery(config); err != nil {
+	if err := daemon.reloadClusterDiscovery(config); err != nil {
 		return err
 	}
 
@@ -1095,7 +1102,7 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 	if daemon.netController == nil {
 		return nil
 	}
-	netOptions, err := daemon.networkOptions(daemon.configStore, nil)
+	netOptions, err := daemon.networkOptions(daemon.configStore, daemon.PluginStore, nil)
 	if err != nil {
 		logrus.WithError(err).Warnf("failed to get options with network controller")
 		return nil
@@ -1112,7 +1119,7 @@ func isBridgeNetworkDisabled(config *Config) bool {
 	return config.bridgeConfig.Iface == disableNetworkBridge
 }
 
-func (daemon *Daemon) networkOptions(dconfig *Config, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
+func (daemon *Daemon) networkOptions(dconfig *Config, pg plugingetter.PluginGetter, activeSandboxes map[string]interface{}) ([]nwconfig.Option, error) {
 	options := []nwconfig.Option{}
 	if dconfig == nil {
 		return options, nil
@@ -1151,6 +1158,10 @@ func (daemon *Daemon) networkOptions(dconfig *Config, activeSandboxes map[string
 
 	if daemon.configStore != nil && daemon.configStore.LiveRestoreEnabled && len(activeSandboxes) != 0 {
 		options = append(options, nwconfig.OptionActiveSandboxes(activeSandboxes))
+	}
+
+	if pg != nil {
+		options = append(options, nwconfig.OptionPluginGetter(pg))
 	}
 
 	return options, nil

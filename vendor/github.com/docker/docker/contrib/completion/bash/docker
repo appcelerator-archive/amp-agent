@@ -758,6 +758,7 @@ _docker_build() {
 	"
 
 	local boolean_options="
+		--compress
 		--disable-content-trust=false
 		--force-rm
 		--help
@@ -922,6 +923,7 @@ _docker_daemon() {
 		--fixed-cidr-v6
 		--graph -g
 		--group -G
+		--init-path
 		--insecure-registry
 		--ip
 		--label
@@ -981,16 +983,16 @@ _docker_daemon() {
 			__docker_nospace
 			return
 			;;
+		--config-file|--containerd|--init-path|--pidfile|-p|--tlscacert|--tlscert|--tlskey)
+			_filedir
+			return
+			;;
 		--exec-root|--graph|-g)
 			_filedir -d
 			return
 			;;
 		--log-driver)
 			__docker_complete_log_drivers
-			return
-			;;
-		--config-file|--containerd|--pidfile|-p|--tlscacert|--tlscert|--tlskey)
-			_filedir
 			return
 			;;
 		--storage-driver|-s)
@@ -1300,7 +1302,7 @@ _docker_info() {
 			return
 			;;
 	esac
-    
+
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
@@ -1406,7 +1408,7 @@ _docker_logs() {
 			COMPREPLY=( $( compgen -W "--details --follow -f --help --since --tail --timestamps -t" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag '--tail')
+			local counter=$(__docker_pos_first_nonflag '--since|--tail')
 			if [ $cword -eq $counter ]; then
 				__docker_complete_containers_all
 			fi
@@ -2103,10 +2105,7 @@ _docker_node_ps() {
 			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve --no-trunc" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag '--filter|-f')
-			if [ $cword -eq $counter ]; then
-				__docker_complete_nodes_plus_self
-			fi
+			__docker_complete_nodes_plus_self
 			;;
 	esac
 }
@@ -2179,6 +2178,10 @@ _docker_ps() {
 		id)
 			cur="${cur##*=}"
 			__docker_complete_container_ids
+			return
+			;;
+		is-task)
+			COMPREPLY=( $( compgen -W "true false" -- "${cur##*=}" ) )
 			return
 			;;
 		name)

@@ -2,17 +2,11 @@ package libcontainerd
 
 import (
 	"github.com/Microsoft/hcsshim"
-	"github.com/docker/docker/libcontainerd/windowsoci"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-// Spec is the base configuration for the container.
-type Spec windowsoci.Spec
-
 // Process contains information to start a specific application inside the container.
-type Process windowsoci.Process
-
-// User specifies user information for the containers main process.
-type User windowsoci.User
+type Process specs.Process
 
 // Summary contains a ProcessList item from HCS to support `top`
 type Summary hcsshim.ProcessListItem
@@ -66,6 +60,12 @@ type LayerOption struct {
 type NetworkEndpointsOption struct {
 	Endpoints                []string
 	AllowUnqualifiedDNSQuery bool
+}
+
+// CredentialsOption is a CreateOption that indicates the credentials from
+// a credential spec to be used to the runtime
+type CredentialsOption struct {
+	Credentials string
 }
 
 // Checkpoint holds the details of a checkpoint (not supported in windows)

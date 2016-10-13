@@ -7,15 +7,14 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
-	"github.com/Shopify/sarama"
 	"github.com/appcelerator/amp/api/rpc/logs"
 	"github.com/docker/docker/api/types"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
+	"log"
 )
 
 const elasticSearchTimeIDQuery = `{"query":{"match":{"container_id":"[container_id]"}},"sort":{"time_id":{"order":"desc"}},"from":0,"size":1}`
@@ -34,7 +33,7 @@ func updateLogsStream() {
 				fmt.Printf("Error opening logs stream on container: %s\n", data.name)
 			} else {
 				data.logsStream = stream
-				startReadingLogs(ID, data)
+				go startReadingLogs(ID, data)
 			}
 		}
 	}
@@ -93,73 +92,61 @@ func extractTimeID(body string) string {
 }
 
 func startReadingLogs(ID string, data *ContainerData) {
-	go func() {
-		stream := data.logsStream
-		serviceName := data.labels["com.docker.swarm.service.name"]
-		serviceID := data.labels["com.docker.swarm.service.id"]
-		taskName := data.labels["com.docker.swarm.task.name"]
-		taskID := data.labels["com.docker.swarm.task.id"]
-		nodeID := data.labels["com.docker.swarm.node.id"]
-		stackID := data.labels["io.amp.stack.id"]
-		stackName := data.labels["io.amp.stack.name"]
-		reader := bufio.NewReader(stream)
-		fmt.Printf("start reading logs on container: %s\n", data.name)
-		nbErr := 0
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				fmt.Printf("stop reading log on container %s: %v\n", data.name, err)
-				data.logsReadError = true
-				stream.Close()
-				agent.removeContainer(ID)
-				return
-			}
-			var slog string
-			if len(line) <= 39 {
-				fmt.Printf("invalid log: [%s]\n", line)
-				continue
-			}
-
-			slog = strings.TrimSuffix(line[39:], "\n")
-			timestamp, err := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
-			if err != nil {
-				timestamp = time.Now()
-			}
-
-			logEntry := logs.LogEntry{
-				ServiceName: serviceName,
-				ServiceId:   serviceID,
-				TaskName:    taskName,
-				TaskId:      taskID,
-				StackId:     stackID,
-				StackName:   stackName,
-				NodeId:      nodeID,
-				ContainerId: ID,
-				Message:     slog,
-				Timestamp:   timestamp.Format(time.RFC3339Nano),
-				TimeId:      timestamp.Format(time.RFC3339Nano),
-			}
-
-			encoded, err := proto.Marshal(&logEntry)
-			if err != nil {
-				fmt.Printf("error marshalling log entry: %v", err)
-			}
-
-			select {
-			case agent.kafkaProducer.Input() <- &sarama.ProducerMessage{Topic: kafkaLogsTopic, Value: sarama.ByteEncoder(encoded)}:
-				nbErr = 0
-			case err := <-agent.kafkaProducer.Errors():
-				fmt.Println("Failed to produce message", err)
-				nbErr++
-				if nbErr > 20 {
-					fmt.Println("Kafka not ready anymore: exit")
-					closeLogsStreams()
-					agent.kafkaClient.Close()
-					os.Exit(1)
-				}
-			}
+	stream := data.logsStream
+	serviceName := data.labels["com.docker.swarm.service.name"]
+	serviceID := data.labels["com.docker.swarm.service.id"]
+	taskName := data.labels["com.docker.swarm.task.name"]
+	taskID := data.labels["com.docker.swarm.task.id"]
+	nodeID := data.labels["com.docker.swarm.node.id"]
+	stackID := data.labels["io.amp.stack.id"]
+	stackName := data.labels["io.amp.stack.name"]
+	reader := bufio.NewReader(stream)
+	fmt.Printf("start reading logs on container: %s\n", data.name)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("stop reading log on container %s: %v\n", data.name, err)
+			data.logsReadError = true
+			stream.Close()
+			agent.removeContainer(ID)
+			return
 		}
-	}()
+		var slog string
+		if len(line) <= 39 {
+			fmt.Printf("invalid log: [%s]\n", line)
+			continue
+		}
+
+		slog = strings.TrimSuffix(line[39:], "\n")
+		timestamp, err := time.Parse("2006-01-02T15:04:05.000000000Z", line[8:38])
+		if err != nil {
+			timestamp = time.Now()
+		}
+
+		logEntry := logs.LogEntry{
+			ServiceName: serviceName,
+			ServiceId:   serviceID,
+			TaskName:    taskName,
+			TaskId:      taskID,
+			StackId:     stackID,
+			StackName:   stackName,
+			NodeId:      nodeID,
+			ContainerId: ID,
+			Message:     slog,
+			Timestamp:   timestamp.Format(time.RFC3339Nano),
+			TimeId:      timestamp.Format(time.RFC3339Nano),
+		}
+
+		encoded, err := proto.Marshal(&logEntry)
+		if err != nil {
+			fmt.Printf("error marshalling log entry: %v", err)
+		}
+
+		_, err = agent.natsClient.PublishAsync("amp-logs", encoded, nil)
+		if err != nil {
+			log.Printf("error sending log entry: %v", err)
+		}
+	}
 }
 
 func closeLogsStreams() {

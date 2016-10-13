@@ -4672,7 +4672,9 @@ Stop and remove the service `id`
 
 **Example response**:
 
-    HTTP/1.1 200 No Content
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
 
 **Status codes**:
 
@@ -5095,7 +5097,7 @@ List tasks
   - `id=<task id>`
   - `name=<task name>`
   - `service=<service name>`
-  - `node=<node id>`
+  - `node=<node id or name>`
   - `label=key` or `label="key=value"`
   - `desired-state=(running | shutdown | accepted)`
 

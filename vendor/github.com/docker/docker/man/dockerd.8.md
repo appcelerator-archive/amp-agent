@@ -35,6 +35,7 @@ dockerd - Enable daemon mode
 [**--help**]
 [**--icc**[=*true*]]
 [**--init**[=*false*]]
+[**--init-path**[=*""*]]
 [**--insecure-registry**[=*[]*]]
 [**--ip**[=*0.0.0.0*]]
 [**--ip-forward**[=*true*]]
@@ -63,6 +64,7 @@ dockerd - Enable daemon mode
 [**--tlskey**[=*~/.docker/key.pem*]]
 [**--tlsverify**]
 [**--userland-proxy**[=*true*]]
+[**--userland-proxy-path**[=*""*]]
 [**--userns-remap**[=*default*]]
 
 # DESCRIPTION
@@ -170,6 +172,9 @@ unix://[/path/to/socket] to use.
 **--init**
 Run an init process inside containers for signal forwarding and process reaping.
 
+**--init-path**
+Path to the docker-init binary.
+
 **--insecure-registry**=[]
   Enable insecure registry communication, i.e., enable un-encrypted and/or untrusted communication.
 
@@ -267,6 +272,9 @@ output otherwise.
 
 **--userland-proxy**=*true*|*false*
     Rely on a userland proxy implementation for inter-container and outside-to-container loopback communications. Default is true.
+
+**--userland-proxy-path**=""
+  Path to the userland proxy binary.
 
 **--userns-remap**=*default*|*uid:gid*|*user:group*|*user*|*uid*
     Enable user namespaces for containers on the daemon. Specifying "default" will cause a new user and group to be created to handle UID and GID range remapping for the user namespace mappings used for contained processes. Specifying a user (or uid) and optionally a group (or gid) will cause the daemon to lookup the user and group's subordinate ID ranges for use as the user namespace mappings for contained processes.

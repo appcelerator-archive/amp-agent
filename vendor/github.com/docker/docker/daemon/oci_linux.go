@@ -14,7 +14,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/caps"
-	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
@@ -594,9 +593,18 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 		if (c.HostConfig.Init != nil && *c.HostConfig.Init) ||
 			(c.HostConfig.Init == nil && daemon.configStore.Init) {
 			s.Process.Args = append([]string{"/dev/init", c.Path}, c.Args...)
-			path, err := exec.LookPath("docker-init")
-			if err != nil {
-				return err
+			var path string
+			if daemon.configStore.InitPath == "" && c.HostConfig.InitPath == "" {
+				path, err = exec.LookPath("docker-init")
+				if err != nil {
+					return err
+				}
+			}
+			if daemon.configStore.InitPath != "" {
+				path = daemon.configStore.InitPath
+			}
+			if c.HostConfig.InitPath != "" {
+				path = c.HostConfig.InitPath
 			}
 			s.Mounts = append(s.Mounts, specs.Mount{
 				Destination: "/dev/init",
@@ -607,14 +615,14 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 		}
 	}
 	s.Process.Cwd = cwd
-	s.Process.Env = c.CreateDaemonEnvironment(linkedEnv)
+	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
 	s.Process.Terminal = c.Config.Tty
 	s.Hostname = c.FullHostname()
 
 	return nil
 }
 
-func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, error) {
+func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s := oci.DefaultSpec()
 	if err := daemon.populateCommonSpec(&s, c); err != nil {
 		return nil, err
@@ -710,7 +718,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	s.Process.NoNewPrivileges = c.NoNewPrivileges
 	s.Linux.MountLabel = c.MountLabel
 
-	return (*libcontainerd.Spec)(&s), nil
+	return (*specs.Spec)(&s), nil
 }
 
 func clearReadOnly(m *specs.Mount) {

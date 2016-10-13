@@ -93,7 +93,7 @@ func setupRootfs(config *configs.Config, console *linuxConsole, pipe io.ReadWrit
 			return newSystemErrorWithCause(err, "reopening /dev/null inside container")
 		}
 	}
-	// remount dev as ro if specifed
+	// remount dev as ro if specified
 	for _, m := range config.Mounts {
 		if libcontainerUtils.CleanPath(m.Destination) == "/dev" {
 			if m.Flags&syscall.MS_RDONLY != 0 {
@@ -306,9 +306,6 @@ func getCgroupMounts(m *configs.Mount) ([]*configs.Mount, error) {
 // checkMountDestination checks to ensure that the mount destination is not over the top of /proc.
 // dest is required to be an abs path and have any symlinks resolved before calling this function.
 func checkMountDestination(rootfs, dest string) error {
-	if libcontainerUtils.CleanPath(rootfs) == libcontainerUtils.CleanPath(dest) {
-		return fmt.Errorf("mounting into / is prohibited")
-	}
 	invalidDestinations := []string{
 		"/proc",
 	}

@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/remotes"
+	"github.com/pkg/errors"
 
 	"golang.org/x/net/context"
 )
@@ -336,21 +336,21 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, 
 
 			// Since the expiration of the certificate is managed remotely we should update our
 			// retry timer on every iteration of this loop.
-			// Retrieve the time until the certificate expires.
-			expiresIn, err := readCertExpiration(paths.Node)
+			// Retrieve the current certificate expiration information.
+			validFrom, validUntil, err := readCertValidity(paths.Node)
 			if err != nil {
 				// We failed to read the expiration, let's stick with the starting default
 				log.Errorf("failed to read the expiration of the TLS certificate in: %s", paths.Node.Cert)
-				updates <- CertificateUpdate{Err: fmt.Errorf("failed to read certificate expiration")}
+				updates <- CertificateUpdate{Err: errors.New("failed to read certificate expiration")}
 			} else {
 				// If we have an expired certificate, we let's stick with the starting default in
 				// the hope that this is a temporary clock skew.
-				if expiresIn.Minutes() < 0 {
+				if validUntil.Before(time.Now()) {
 					log.WithError(err).Errorf("failed to create a new client TLS config")
-					updates <- CertificateUpdate{Err: fmt.Errorf("TLS certificate is expired")}
+					updates <- CertificateUpdate{Err: errors.New("TLS certificate is expired")}
 				} else {
 					// Random retry time between 50% and 80% of the total time to expiration
-					retry = calculateRandomExpiry(expiresIn)
+					retry = calculateRandomExpiry(validFrom, validUntil)
 				}
 			}
 
@@ -420,18 +420,16 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, 
 	return updates
 }
 
-// calculateRandomExpiry returns a random duration between 50% and 80% of the original
-// duration
-func calculateRandomExpiry(expiresIn time.Duration) time.Duration {
-	if expiresIn.Minutes() <= 1 {
-		return time.Second
-	}
+// calculateRandomExpiry returns a random duration between 50% and 80% of the
+// original validity period
+func calculateRandomExpiry(validFrom, validUntil time.Time) time.Duration {
+	duration := validUntil.Sub(validFrom)
 
 	var randomExpiry int
 	// Our lower bound of renewal will be half of the total expiration time
-	minValidity := int(expiresIn.Minutes() * CertLowerRotationRange)
+	minValidity := int(duration.Minutes() * CertLowerRotationRange)
 	// Our upper bound of renewal will be 80% of the total expiration time
-	maxValidity := int(expiresIn.Minutes() * CertUpperRotationRange)
+	maxValidity := int(duration.Minutes() * CertUpperRotationRange)
 	// Let's select a random number of minutes between min and max, and set our retry for that
 	// Using randomly selected rotation allows us to avoid certificate thundering herds.
 	if maxValidity-minValidity < 1 {
@@ -440,7 +438,11 @@ func calculateRandomExpiry(expiresIn time.Duration) time.Duration {
 		randomExpiry = rand.Intn(maxValidity-minValidity) + int(minValidity)
 	}
 
-	return time.Duration(randomExpiry) * time.Minute
+	expiry := validFrom.Add(time.Duration(randomExpiry) * time.Minute).Sub(time.Now())
+	if expiry < 0 {
+		return 0
+	}
+	return expiry
 }
 
 // LoadTLSCreds loads tls credentials from the specified path and verifies that
@@ -459,7 +461,7 @@ func LoadTLSCreds(rootCA RootCA, paths CertPaths) (*MutableTLSCreds, *MutableTLS
 	// Create an x509 certificate out of the contents on disk
 	certBlock, _ := pem.Decode([]byte(cert))
 	if certBlock == nil {
-		return nil, nil, fmt.Errorf("failed to parse certificate PEM")
+		return nil, nil, errors.New("failed to parse certificate PEM")
 	}
 
 	// Create an X509Cert so we can .Verify()
@@ -528,7 +530,7 @@ func genTempPaths(path CertPaths) CertPaths {
 // and the PEM-encoded root CA Certificate
 func NewServerTLSConfig(cert *tls.Certificate, rootCAPool *x509.CertPool) (*tls.Config, error) {
 	if rootCAPool == nil {
-		return nil, fmt.Errorf("valid root CA pool required")
+		return nil, errors.New("valid root CA pool required")
 	}
 
 	return &tls.Config{
@@ -547,7 +549,7 @@ func NewServerTLSConfig(cert *tls.Certificate, rootCAPool *x509.CertPool) (*tls.
 // the PEM-encoded root CA Certificate, and the name of the remote server the client wants to connect to.
 func NewClientTLSConfig(cert *tls.Certificate, rootCAPool *x509.CertPool, serverName string) (*tls.Config, error) {
 	if rootCAPool == nil {
-		return nil, fmt.Errorf("valid root CA pool required")
+		return nil, errors.New("valid root CA pool required")
 	}
 
 	return &tls.Config{
@@ -592,7 +594,7 @@ func ParseRole(apiRole api.NodeRole) (string, error) {
 	case api.NodeRoleWorker:
 		return WorkerRole, nil
 	default:
-		return "", fmt.Errorf("failed to parse api role: %v", apiRole)
+		return "", errors.Errorf("failed to parse api role: %v", apiRole)
 	}
 }
 
@@ -604,6 +606,6 @@ func FormatRole(role string) (api.NodeRole, error) {
 	case strings.ToLower(WorkerRole):
 		return api.NodeRoleWorker, nil
 	default:
-		return 0, fmt.Errorf("failed to parse role: %s", role)
+		return 0, errors.Errorf("failed to parse role: %s", role)
 	}
 }

@@ -229,6 +229,9 @@ List containers
   -   `status=`(`created`|`restarting`|`running`|`removing`|`paused`|`exited`|`dead`)
   -   `label=key` or `label="key=value"` of a container label
   -   `isolation=`(`default`|`process`|`hyperv`)   (Windows daemon only)
+      `id=<ID>` a container's ID
+      `name=<name>` a container's name
+      `is-task=`(`true`|`false`)
   -   `ancestor`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
   -   `before`=(`<container id>` or `<container name>`)
   -   `since`=(`<container id>` or `<container name>`)
@@ -1564,6 +1567,38 @@ Upload a tar archive to be extracted to a path in the filesystem of container
     - no such file or directory (**path** resource does not exist)
 - **500** – server error
 
+
+### Prune stopped containers
+
+`POST /containers/prune`
+
+Delete stopped containers
+
+**Example request**:
+
+    POST /containers/prune HTTP/1.1
+    Content-Type: application/json
+
+    {
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "ContainersDeleted": [
+            "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
+        ],
+        "SpaceReclaimed": 109
+    }
+
+**Status codes**:
+
+-   **200** – no error
+-   **500** – server error
+
 ## 3.2 Images
 
 ### List Images
@@ -1849,7 +1884,7 @@ Return low-level information on the image `name`
 
     GET /images/example/json HTTP/1.1
 
-**Example response**:
+**Example response (Linux daemon)**:
 
     HTTP/1.1 200 OK
     Content-Type: application/json
@@ -1950,6 +1985,86 @@ Return low-level information on the image `name`
            ]
        }
     }
+
+**Example response (Windows daemon)**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [
+        {
+            "Id": "sha256:105d76d0f40e38427c63023ffe649bf36fa85058d3469551e43e4dcc2431fb31",
+            "RepoTags": [
+                "microsoft/nanoserver:latest"
+            ],
+            "RepoDigests": [
+                "microsoft/nanoserver@sha256:aee7d4330fe3dc5987c808f647441c16ed2fa1c7d9c6ef49d6498e5c9860b50b"
+            ],
+            "Parent": "",
+            "Comment": "",
+            "Created": "2016-09-22T02:39:30.9154862-07:00",
+            "Container": "",
+            "ContainerConfig": {
+                "Hostname": "",
+                "Domainname": "",
+                "User": "",
+                "AttachStdin": false,
+                "AttachStdout": false,
+                "AttachStderr": false,
+                "Tty": false,
+                "OpenStdin": false,
+                "StdinOnce": false,
+                "Env": null,
+                "Cmd": null,
+                "Image": "",
+                "Volumes": null,
+                "WorkingDir": "",
+                "Entrypoint": null,
+                "OnBuild": null,
+                "Labels": null
+            },
+            "DockerVersion": "",
+            "Author": "",
+            "Config": {
+                "Hostname": "",
+                "Domainname": "",
+                "User": "",
+                "AttachStdin": false,
+                "AttachStdout": false,
+                "AttachStderr": false,
+                "Tty": false,
+                "OpenStdin": false,
+                "StdinOnce": false,
+                "Env": null,
+                "Cmd": [
+                    "c:\\windows\\system32\\cmd.exe"
+                ],
+                "Image": "",
+                "Volumes": null,
+                "WorkingDir": "",
+                "Entrypoint": null,
+                "OnBuild": null,
+                "Labels": null
+            },
+            "Architecture": "",
+            "Os": "windows",
+            "OsVersion": "10.0.14393",
+            "Size": 651862727,
+            "VirtualSize": 651862727,
+            "GraphDriver": {
+                "Name": "windowsfilter",
+                "Data": {
+                    "dir": "C:\\control\\windowsfilter\\6fe6a289b98276a6a5ca0345156ca61d7b38f3da6bb49ef95af1d0f1ac37e5bf"
+                }
+            },
+            "RootFS": {
+                "Type": "layers",
+                "Layers": [
+                    "sha256:342d4e407550c52261edd20cd901b5ce438f0b1e940336de3978210612365063"
+                ]
+            }
+        }
+    ]
 
 **Status codes**:
 
@@ -2191,6 +2306,54 @@ Search for an image on [Docker Hub](https://hub.docker.com).
 -   **200** – no error
 -   **500** – server error
 
+### Prune unused images
+
+`POST /images/prune`
+
+Delete unused images
+
+**Example request**:
+
+    POST /images/prune HTTP/1.1
+    Content-Type: application/json
+
+    {
+        "DanglingOnly": false
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "ImagesDeleted": [
+            {
+                "Untagged": "busybox:latest"
+            },
+            {
+                "Untagged": "busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6"
+            },
+            {
+                "Deleted": "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
+            },
+            {
+                "Deleted": "sha256:8ac8bfaff55af948c796026ee867448c5b5b5d9dd3549f4006d9759b25d4a893"
+            }
+        ],
+        "SpaceReclaimed": 1092588
+    }
+
+**JSON parameters**:
+
+- **DanglingOnly**: if `true` only delete unused *and* untagged images. Default to `false` if omitted
+
+**Status codes**:
+
+-   **200** – no error
+-   **500** – server error
+
+
 ## 3.3 Misc
 
 ### Check auth configuration
@@ -2236,7 +2399,7 @@ Display system-wide information
 
     GET /info HTTP/1.1
 
-**Example response**:
+**Example response (Linux)**:
 
     HTTP/1.1 200 OK
     Content-Type: application/json
@@ -2312,6 +2475,200 @@ Display system-wide information
         "SwapLimit": false,
         "SystemStatus": [["State", "Healthy"]],
         "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
+    }
+
+
+**Example response (Windows)**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "ID": "NYMS:B5VK:UMSL:FVDZ:EWB5:FKVK:LPFL:FJMQ:H6FT:BZJ6:L2TD:XH62",
+        "Containers": 1,
+        "ContainersRunning": 0,
+        "ContainersPaused": 0,
+        "ContainersStopped": 1,
+        "Images": 17,
+        "Driver": "windowsfilter",
+        "DriverStatus": [
+            ["Windows", ""]
+        ],
+        "SystemStatus": null,
+            "Plugins": {
+                "Volume": ["local"],
+                "Network": ["nat", "null", "overlay"],
+                "Authorization": null
+            },
+        "MemoryLimit": false,
+        "SwapLimit": false,
+        "KernelMemory": false,
+        "CpuCfsPeriod": false,
+        "CpuCfsQuota": false,
+        "CPUShares": false,
+        "CPUSet": false,
+        "IPv4Forwarding": true,
+        "BridgeNfIptables": true,
+        "BridgeNfIp6tables": true,
+        "Debug": false,
+        "NFd": -1,
+        "OomKillDisable": false,
+        "NGoroutines": 11,
+        "SystemTime": "2016-09-23T11:59:58.9843533-07:00",
+        "LoggingDriver": "json-file",
+        "CgroupDriver": "",
+        "NEventsListener": 0,
+        "KernelVersion": "10.0 14393 (14393.206.amd64fre.rs1_release.160912-1937)",
+        "OperatingSystem": "Windows Server 2016 Datacenter",
+        "OSType": "windows",
+        "Architecture": "x86_64",
+        "IndexServerAddress": "https://index.docker.io/v1/",
+        "RegistryConfig": {
+                "InsecureRegistryCIDRs": ["127.0.0.0/8"],
+                "IndexConfigs": {
+                    "docker.io": {
+                        "Name": "docker.io",
+                        "Mirrors": null,
+                        "Secure": true,
+                        "Official": true
+                    }
+                },
+                "Mirrors": null
+        },
+        "NCPU": 8,
+        "MemTotal": 4293828608,
+        "DockerRootDir": "C:\\control",
+        "HttpProxy": "",
+        "HttpsProxy": "",
+        "NoProxy": "",
+        "Name": "WIN-V0V70C0LU5P",
+        "Labels": null,
+        "ExperimentalBuild": false,
+        "ServerVersion": "1.13.0-dev",
+        "ClusterStore": "",
+        "ClusterAdvertise": "",
+        "SecurityOptions": null,
+        "Runtimes": null,
+        "DefaultRuntime": "",
+        "Swarm": {
+            "NodeID": "",
+            "NodeAddr": "",
+            "LocalNodeState": "inactive",
+            "ControlAvailable": false,
+            "Error": "",
+            "RemoteManagers": null,
+            "Nodes": 0,
+            "Managers": 0,
+            "Cluster": {
+                "ID": "",
+                "Version": {},
+                "CreatedAt": "0001-01-01T00:00:00Z",
+                "UpdatedAt": "0001-01-01T00:00:00Z",
+                "Spec": {
+                    "Orchestration": {},
+                    "Raft": {
+                        "ElectionTick": 0,
+                        "HeartbeatTick": 0
+                    },
+                    "Dispatcher": {},
+                    "CAConfig": {},
+                    "TaskDefaults": {}
+                }
+            }
+        },
+        "LiveRestoreEnabled": false,
+        "Isolation": "process"
+    }
+
+**Status codes**:
+
+-   **200** – no error
+-   **500** – server error
+
+### Show docker data usage information
+
+`GET /system/df`
+
+Return docker data usage information
+
+**Example request**:
+
+    GET /system/df HTTP/1.1
+
+**Example response**:
+
+    {
+        "LayersSize": 1092588,
+        "Images": [
+            {
+                "Id": "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749",
+                "ParentId": "",
+                "RepoTags": [
+                    "busybox:latest"
+                ],
+                "RepoDigests": [
+                    "busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6"
+                ],
+                "Created": 1466724217,
+                "Size": 1092588,
+                "SharedSize": 0,
+                "VirtualSize": 1092588,
+                "Labels": {},
+                "Containers": 1
+            }
+        ],
+        "Containers": [
+            {
+                "Id": "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148",
+                "Names": [
+                    "/top"
+                ],
+                "Image": "busybox",
+                "ImageID": "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749",
+                "Command": "top",
+                "Created": 1472592424,
+                "Ports": [],
+                "SizeRootFs": 1092588,
+                "Labels": {},
+                "State": "exited",
+                "Status": "Exited (0) 56 minutes ago",
+                "HostConfig": {
+                    "NetworkMode": "default"
+                },
+                "NetworkSettings": {
+                    "Networks": {
+                        "bridge": {
+                            "IPAMConfig": null,
+                            "Links": null,
+                            "Aliases": null,
+                            "NetworkID": "d687bc59335f0e5c9ee8193e5612e8aee000c8c62ea170cfb99c098f95899d92",
+                            "EndpointID": "8ed5115aeaad9abb174f68dcf135b49f11daf597678315231a32ca28441dec6a",
+                            "Gateway": "172.18.0.1",
+                            "IPAddress": "172.18.0.2",
+                            "IPPrefixLen": 16,
+                            "IPv6Gateway": "",
+                            "GlobalIPv6Address": "",
+                            "GlobalIPv6PrefixLen": 0,
+                            "MacAddress": "02:42:ac:12:00:02"
+                        }
+                    }
+                },
+                "Mounts": []
+            }
+        ],
+        "Volumes": [
+                {
+                    "Name": "my-volume",
+                    "Driver": "local",
+                    "Mountpoint": "",
+                    "Labels": null,
+                    "Scope": "",
+                    "UsageData": {
+                        "Size": 0,
+                        "RefCount": 0
+                    }
+                }
+        ]
     }
 
 **Status codes**:
@@ -3120,6 +3477,38 @@ Instruct the driver to remove the volume (`name`).
 -   **404** - no such volume or volume driver
 -   **409** - volume is in use and cannot be removed
 -   **500** - server error
+
+### Prune unused volumes
+
+`POST /volumes/prune`
+
+Delete unused volumes
+
+**Example request**:
+
+    POST /volumes/prune HTTP/1.1
+    Content-Type: application/json
+
+    {
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "VolumesDeleted": [
+            "my-volume"
+        ],
+        "SpaceReclaimed": 42
+    }
+
+**Status codes**:
+
+-   **200** – no error
+-   **500** – server error
+
 
 ## 3.5 Networks
 
@@ -4733,7 +5122,9 @@ Stop and remove the service `id`
 
 **Example response**:
 
-    HTTP/1.1 200 No Content
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
 
 **Status codes**:
 
@@ -5156,7 +5547,7 @@ List tasks
   - `id=<task id>`
   - `name=<task name>`
   - `service=<service name>`
-  - `node=<node id>`
+  - `node=<node id or name>`
   - `label=key` or `label="key=value"`
   - `desired-state=(running | shutdown | accepted)`
 

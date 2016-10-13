@@ -94,7 +94,7 @@ wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem \
 
 The following diagram depicts the container states accessible through the API.
 
-[![States](images/event_state.png)](../images/event_state.png)
+![States](images/event_state.png)
 
 Some container-related events are not affected by container state, so they are not included in this diagram. These events are:
 
@@ -116,6 +116,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.25](docker_remote_api_v1.25.md) documentation
 
+* `GET /images/(name)/json` now returns `OsVersion` if populated
+* `GET /info` now returns `Isolation`.
 * `POST /containers/create` now takes `AutoRemove` in HostConfig, to enable auto-removal of the container on daemon side when the container's process exits.
 * `GET /containers/json` and `GET /containers/(id or name)/json` now return `"removing"` as a value for the `State.Status` field if the container is being removed. Previously, "exited" was returned as status.
 * `GET /containers/json` now accepts `removing` as a valid value for the `status` filter.
@@ -128,6 +130,9 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /networks/` endpoint now correctly returns a list of *all* networks,
   instead of the default network if a trailing slash is provided, but no `name`
   or `id`.
+* `DELETE /containers/(name)` endpoint now returns an error of `removal of container name is already in progress` with status code of 400, when container name is in a state of removal in progress.
+* `GET /containers/json` now supports a `is-task` filter to filter
+  containers that are tasks (part of a service in swarm mode).
 
 ### v1.24 API changes
 

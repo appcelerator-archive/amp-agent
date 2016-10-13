@@ -76,13 +76,14 @@ func DefaultSpec() specs.Spec {
 		"CAP_AUDIT_WRITE",
 	}
 
-	s.Linux = specs.Linux{
+	s.Linux = &specs.Linux{
 		MaskedPaths: []string{
 			"/proc/kcore",
 			"/proc/latency_stats",
 			"/proc/timer_list",
 			"/proc/timer_stats",
 			"/proc/sched_debug",
+			"/sys/firmware",
 		},
 		ReadonlyPaths: []string{
 			"/proc/asound",

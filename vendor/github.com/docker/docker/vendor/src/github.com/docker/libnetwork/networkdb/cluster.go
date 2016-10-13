@@ -112,14 +112,20 @@ func (nDB *NetworkDB) clusterInit() error {
 
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
-			return len(nDB.nodes)
+			nDB.RLock()
+			num := len(nDB.nodes)
+			nDB.RUnlock()
+			return num
 		},
 		RetransmitMult: config.RetransmitMult,
 	}
 
 	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
-			return len(nDB.nodes)
+			nDB.RLock()
+			num := len(nDB.nodes)
+			nDB.RUnlock()
+			return num
 		},
 		RetransmitMult: config.RetransmitMult,
 	}
@@ -159,6 +165,10 @@ func (nDB *NetworkDB) retryJoin(members []string, stop <-chan struct{}) {
 		case <-t.C:
 			if _, err := nDB.memberlist.Join(members); err != nil {
 				logrus.Errorf("Failed to join memberlist %s on retry: %v", members, err)
+				continue
+			}
+			if err := nDB.sendNodeEvent(NodeEventTypeJoin); err != nil {
+				logrus.Errorf("failed to send node join on retry: %v", err)
 				continue
 			}
 			return
@@ -555,10 +565,6 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		case <-t.C:
 			logrus.Errorf("Bulk sync to node %s timed out", node)
 		case <-ch:
-			nDB.Lock()
-			delete(nDB.bulkSyncAckTbl, node)
-			nDB.Unlock()
-
 			logrus.Debugf("%s: Bulk sync to node %s took %s", nDB.config.NodeName, node, time.Now().Sub(startTime))
 		}
 		t.Stop()

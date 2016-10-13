@@ -48,8 +48,8 @@ esac
 
 # the following lines are in sorted order, FYI
 clone git github.com/Azure/go-ansiterm 388960b655244e76e24c75f48631564eaefade62
-clone git github.com/Microsoft/hcsshim v0.4.3
-clone git github.com/Microsoft/go-winio v0.3.4
+clone git github.com/Microsoft/hcsshim v0.5.1
+clone git github.com/Microsoft/go-winio v0.3.5
 clone git github.com/Sirupsen/logrus v0.10.0 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
 clone git github.com/go-check/check 4ed411733c5785b40214c70bce814c3a3a689609 https://github.com/cpuguy83/check.git
@@ -70,7 +70,7 @@ clone git github.com/RackSec/srslog 365bf33cd9acc21ae1c355209865f17228ca534e
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork bf3d9ccfb8ebf768843691143c66d137743cc5e9
+clone git github.com/docker/libnetwork 848cd92ec23e3ab15a36412030ed61e3844b40e1
 clone git github.com/docker/go-events 18b43f1bc85d9cdd42c05a6cd2d444c7a200a894
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -92,7 +92,7 @@ clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
 clone git github.com/docker/distribution 77b9d2997abcded79a5314970fe69a44c93c25fb
-clone git github.com/vbatts/tar-split v0.9.11
+clone git github.com/vbatts/tar-split v0.10.1
 
 # get go-zfs packages
 clone git github.com/mistifyio/go-zfs 22c9b32c84eb0d0c6f4043b6e90fc94073de92fa
@@ -106,8 +106,8 @@ clone git github.com/miekg/pkcs11 df8ae6ca730422dba20c768ff38ef7d79077a59f
 clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc cc29e3dded8e27ba8f65738f40d251c885030a28 # libcontainer
-clone git github.com/opencontainers/runtime-spec v1.0.0-rc1 # specs
+clone git github.com/opencontainers/runc 02f8fa7863dd3f82909a73e2061897828460d52f # libcontainer
+clone git github.com/opencontainers/runtime-spec 1c7c27d043c2a5e513a44084d2b10d77d1402b8c # specs
 clone git github.com/seccomp/libseccomp-golang 32f571b70023028bd57d9288c20efbcb237f3ce0
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4
@@ -140,10 +140,10 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 clone git github.com/docker/docker-credential-helpers v0.3.0
 
 # containerd
-clone git github.com/docker/containerd 2545227b0357eb55e369fa0072baef9ad91cdb69
+clone git github.com/docker/containerd 837e8c5e1cad013ed57f5c2090c8591c10cbbdae
 
 # cluster
-clone git github.com/docker/swarmkit 7b202f058db2f3a7d41351a56e5ef720c9b5a45d
+clone git github.com/docker/swarmkit 7e63bdefb94e5bea2641e8bdebae2cfa61a0ed44
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf v0.3
 clone git github.com/cloudflare/cfssl 7fb22c8cba7ecaf98e4082d22d65800cf45e042a

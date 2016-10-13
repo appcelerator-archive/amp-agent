@@ -9,10 +9,12 @@ import (
 //AgentConfig configuration parameters
 type AgentConfig struct {
 	dockerEngine     string
-	kafkaHost        string
 	elasticsearchURL string
 	apiPort          string
 	period           int
+	natsURL          string
+	clientID         string
+	clusterID        string
 }
 
 var conf AgentConfig
@@ -27,19 +29,23 @@ func (cfg *AgentConfig) init(version string, build string) {
 //Set default value of configuration
 func (cfg *AgentConfig) setDefault() {
 	cfg.dockerEngine = "unix:///var/run/docker.sock"
-	cfg.kafkaHost = "kafka:9092"
+	cfg.natsURL = "nats://nats:4222"
 	cfg.elasticsearchURL = "elasticsearch:9200/amp-logs/_search"
 	cfg.apiPort = "3000"
-	cfg.period = 10
+	cfg.period = 1
+	cfg.clientID = "amp-agent-" + os.Getenv("HOSTNAME")
+	cfg.clusterID = "test-cluster"
 }
 
 //Update config with env variables
 func (cfg *AgentConfig) loadConfigUsingEnvVariable() {
 	cfg.dockerEngine = getStringParameter("DOCKER", cfg.dockerEngine)
-	cfg.kafkaHost = getStringParameter("KAFKA_HOST", cfg.kafkaHost)
+	cfg.natsURL = getStringParameter("NATS_URL", cfg.natsURL)
 	cfg.apiPort = getStringParameter("API_PORT", cfg.apiPort)
 	cfg.elasticsearchURL = getStringParameter("ELASTICSEARCH", cfg.elasticsearchURL)
 	cfg.period = getIntParameter("PERIOD", cfg.period)
+	cfg.clientID = getStringParameter("CLIENTID", cfg.clientID)
+	cfg.clusterID = getStringParameter("CLIENTID", cfg.clusterID)
 }
 
 //display amp-pilot configuration
@@ -48,7 +54,9 @@ func (cfg *AgentConfig) displayConfig(version string, build string) {
 	fmt.Println("----------------------------------------------------------------------------")
 	fmt.Println("Configuration:")
 	fmt.Printf("Docker-engine: %s\n", conf.dockerEngine)
-	fmt.Printf("Kafka host: %s\n", conf.kafkaHost)
+	fmt.Printf("Nats URL: %s\n", conf.natsURL)
+	fmt.Printf("ClientId: %s\n", conf.clientID)
+	fmt.Printf("ClusterId: %s\n", conf.clusterID)
 	fmt.Println("----------------------------------------------------------------------------")
 }
 
