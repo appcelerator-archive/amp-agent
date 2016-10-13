@@ -14,7 +14,7 @@ install:
   - make install-deps
 
 script:
-  - make install
+  - docker run -it --volume=$GOPATH/src/github.com/appcelerator/amp-agent:/go/src/github.com/appcelerator/amp-agent appcelerator/docker-alpine-builder amp-agent
   - docker build -t appcelerator/amp-agent:test .
   - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
   - docker push appcelerator/amp-agent:test
