@@ -38,9 +38,8 @@ func healthcheck() bool {
                return false
         } 
         fmt.Println(response.StatusCode)
-	if response.StatusCode == 400 {
-		return false
+	if response.StatusCode == 200 {
+		return true
 	} 
-        return true
-
+        return false
 }
