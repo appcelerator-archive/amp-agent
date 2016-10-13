@@ -8,7 +8,7 @@ BASEDIR := $(shell echo $${PWD})
 VERSION := 1.1.0-10
 BUILD := $(shell git rev-parse HEAD | cut -c1-8)
 
-LDFLAGS=-ldflags "-s -w -X=main.Version=$(VERSION) -X=main.Build=$(BUILD)"
+LDFLAGS=-ldflags "-X=main.Version=$(VERSION) -X=main.Build=$(BUILD)"
 
 # ignore vendor directory for go files
 SRC := $(shell find . -type f -name '*.go' -not -path './vendor/*' -not -path './.git/*')
@@ -41,9 +41,8 @@ clean:
 	@rm -rf $(GENERATED)
 	@rm -f $$(which amp-agent)
 
-install: export CGO_ENABLED = 0
 install:
-	@go install -v -a -tags netgo -installsuffix netgo $(LDFLAGS) $(REPO)
+	@go install $(LDFLAGS) $(REPO)
 	@cp $(GOPATH)/bin/$(NAME) .
 
 

@@ -1,6 +1,6 @@
 FROM scratch
 
-COPY ./amp-agent /amp-agent
+COPY ./amp-agent.alpine /amp-agent
 
 HEALTHCHECK --interval=10s --timeout=15s --retries=12 CMD ["/amp-agent healthcheck"]
 
