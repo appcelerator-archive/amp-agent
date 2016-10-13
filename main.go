@@ -32,7 +32,7 @@ func main() {
 }
 
 func healthcheck() bool {
- 	response, err := http.Get("http://localhost:3000/api/v1/healthcheck")
+ 	response, err := http.Get("http://localhost:3000/api/v1/health")
  	fmt.Println(err)
         if err != nil {
                return false
