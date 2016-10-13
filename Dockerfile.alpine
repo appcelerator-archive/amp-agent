@@ -1,0 +1,17 @@
+FROM appcelerator/alpine:20160928
+
+ENV GOPATH /go
+ENV PATH $PATH:/go/bin
+
+COPY ./ /go/src/github.com/appcelerator/amp-agent
+
+RUN apk update && \
+    apk -v --virtual build-deps add git make go@community musl-dev && \
+    apk -v add go@community && \
+    go version && \
+
+RUN cd /go/src/github.com/appcelerator/amp-agent && \
+    go get -u github.com/Masterminds/glide/... && \
+    glide install && \
+    
+RUN make install
